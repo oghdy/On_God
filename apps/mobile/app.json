@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "OnGod",
+    "slug": "ongod",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.ongod.app"
+    },
+    "android": {
+      "package": "com.ongod.app"
+    }
+  }
+}

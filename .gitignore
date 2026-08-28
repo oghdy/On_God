@@ -14,6 +14,7 @@ build/
 .expo/
 .next/
 out/
+*.tsbuildinfo
 
 # native
 ios/
