@@ -201,4 +201,29 @@
 - `tsc --noEmit -p packages/db/tsconfig.json` 통과
 **막힌 점 / 다음 할 일**: 없음. `docs/human-actions.md`의 "Docker 설치(선택)" 항목은 더 이상 해당 없어 제거함
 
+## 2026-08-28 · P0-S2-T7 — seed 스크립트
+
+**Task**: [P0-S2-T7](../phase-0-foundation.md#s2-supabase-프로젝트--db-스키마)
+**한 일**:
+- `packages/db/scripts/gen-types.sh`를 `--db-url`(Supavisor pooler + DB 비밀번호) 방식에서 `--project-id`(`SUPABASE_ACCESS_TOKEN`만 있으면 됨) 방식으로 단순화. 직전 로그(P0-S3-T1 후속)에서 확인된 대로 Docker/DB 비밀번호가 필요 없어졌으므로 스크립트도 그에 맞춤
+- `supabase/seed.sql`: 흑인영가(Negro spiritual) 3곡(`Wade in the Water`/`Swing Low, Sweet Chariot`/`Go Down Moses`) 샘플. `songs`/`lyrics`/`song_info`/`daily_picks` 4개 테이블을 전부 채우고, `daily_picks.status`가 `published`(오늘·어제)·`scheduled`(내일)를 각각 하나씩 커버하게 해서 앱의 "오늘의 카드"와 어드민의 예약 발행 큐를 로컬에서 바로 확인 가능하게 함
+- 원문 가사는 실제 텍스트 대신 "[개발용 샘플]" 표시가 붙은 더미 텍스트 — 저작권 있는 실제 가사를 시드 데이터에 넣지 않기 위함
+- 고정 UUID(`11111111-...`, `22222222-...`, `33333333-...`) + `on conflict do nothing`으로 재실행해도 안전하게 작성
+
+**왜 이렇게**:
+- 이 환경엔 Docker가 없어 `supabase start`(로컬 스택)로 직접 검증은 못 함. 대신 로컬 Postgres.app(이 머신에 이미 설치돼 있었음)에 임시 DB(`ongod_seed_test`)를 만들어 `auth.users`/`auth.uid()`를 최소 스텁으로 흉내내고, 마이그레이션 5개 + `seed.sql`을 실제로 순서대로 적용해 검증함 — dev/prod 클라우드 프로젝트에는 전혀 손대지 않음. 검증 후 임시 DB는 즉시 삭제
+- 이 방식으로 SQL 문법 오류, FK 제약 위반, 멱등성(재실행 시 중복 안 됨)까지 실제로 확인함 — CI의 `supabase-migrations.yml` 워크플로가 하는 것(`supabase start` + `supabase db reset`)과 사실상 동일한 검증을 로컬에서 대체 수행한 셈
+
+**변경 파일**: `supabase/seed.sql`, `packages/db/scripts/gen-types.sh`
+
+**검증**:
+- 로컬 임시 Postgres DB에 마이그레이션 5개 + `seed.sql` 순서대로 적용 → 에러 없음
+- `songs`/`daily_picks`/`song_info`/`lyrics`를 join한 쿼리로 3곡 전부 올바르게 연결됨을 확인 (Wade in the Water=오늘/published, Swing Low=어제/published, Go Down Moses=내일/scheduled, scripture_reference 포함)
+- `seed.sql`을 같은 DB에 두 번째로 실행 → `INSERT 0 0`(중복 삽입 없음), `songs` 카운트 3개 그대로 → 멱등성 확인
+- 임시 DB 삭제로 정리 완료
+
+**막힌 점 / 다음 할 일**:
+- **Phase 0 전부 완료** (S1~S6). 남은 건 전부 🧑/🤝: P0-S5-T4(Phase 1 API 키), P0-S6-T3(EAS 계정), P0-S6-T4(Vercel 연결)
+- 다음 자연스러운 단계는 Phase 1(Content Pipeline) — 단, P1-S2-T0*/P1-S3-T0(외부 API 키 발급)가 먼저 필요함
+
 <!-- 아래에 새 로그 항목을 계속 추가한다 -->

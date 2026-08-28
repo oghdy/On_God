@@ -8,7 +8,7 @@
 ## 진행 체크리스트
 
 - [x] S1. 모노레포 구조 설계
-- [ ] S2. Supabase 프로젝트 & DB 스키마
+- [x] S2. Supabase 프로젝트 & DB 스키마
 - [x] S3. 공유 패키지 (타입·설정·유틸)
 - [x] S4. 외부 서비스 추상화 레이어
 - [ ] S5. 환경·시크릿 관리 (T4만 남음 — Phase 1 외부 API 키 발급 후)
@@ -74,7 +74,7 @@ apps/admin  ─┼─▶ integrations ─▶ db ─▶ core ◀── (core는 �
 - [x] 🤖 **P0-S2-T5** — `rls_policies.sql`: RLS 정책 (**ADR-0001** — 운영 테이블 쓰기 차단, 유저 테이블 본인 행만)
 - [x] 🤖 **P0-S2-T6** — `constraints.sql`: `daily_picks.status` CHECK 제약, `songs.album_cover_source_url` 컬럼 추가 (**ADR-0003**)
 - [x] 🤖 **P0-S2-T6b** — `pipeline_runs.sql`: 파이프라인 추적 테이블 (**ADR-0002**)
-- [ ] 🤖 **P0-S2-T7** — seed 스크립트 (`supabase/seed.sql`) 개발용 샘플 곡
+- [x] 🤖 **P0-S2-T7** — seed 스크립트 (`supabase/seed.sql`) 개발용 샘플 곡 ([로그](./logs/backend-log.md#2026-08-28--p0-s2-t7--seed-스크립트))
 - [x] 🤝 **P0-S2-T8** — 마이그레이션을 dev·prod 모두에 적용·검증 ([로그](./logs/backend-log.md#2026-08-28--p0-s2-t1t8--supabase-devprod-프로젝트-생성-및-스키마-적용))
 
 ---
