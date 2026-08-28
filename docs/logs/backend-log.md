@@ -266,4 +266,12 @@
 **변경 파일**: `apps/admin/.env.local` (gitignored, 커밋 안 됨)
 **막힌 점 / 다음 할 일**: 사람이 알려준 비밀번호("1234", 4자)는 Supabase Auth 기본 최소 길이(6자)보다 짧아서 대시보드가 계정 생성을 거부할 가능성이 큼 — 6자 이상으로 다시 받아야 함. 계정 생성 완료되면 로그인 성공 케이스까지 마저 확인 예정
 
+## 2026-08-28 · P1-S2-T0b — Spotify 키 발급 보류
+
+**Task**: [P1-S2-T0b](../phase-1-content-pipeline.md#s2-외부-api-어댑터-실연동)
+**한 일**: Spotify API 키 발급을 보류하기로 결정, `phase-1-content-pipeline.md`/`human-actions.md`에 ⏸️ 표시
+**왜 이렇게**: 사람이 Spotify 개발자 대시보드 진입 시도했으나 "Upgrade to Spotify Premium to access the Web API" 메시지로 막힘 — 무료 계정으로는 API 접근 자체가 차단된 상태(최근 정책 변경으로 보이나 정확한 시점은 확인 안 됨). Spotify는 `MetadataProvider` 여러 구현체 중 하나일 뿐이고 필수 provider가 아님(앨범커버·장르·발매연도는 Apple Music이 커버, 트랙 링크·popularity만 Spotify 담당 예정이었음) → Premium 구독 여부는 사람이 나중에 판단, 지금은 건너뛰고 YouTube/Genius/Apple Music으로 진행
+**변경 파일**: `docs/phase-1-content-pipeline.md`, `docs/human-actions.md`
+**막힌 점 / 다음 할 일**: Spotify 어댑터(P1-S2-T2)도 같이 보류. 나머지 3개 키(YouTube/Genius/Apple Music) 발급 진행 중
+
 <!-- 아래에 새 로그 항목을 계속 추가한다 -->

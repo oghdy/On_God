@@ -12,7 +12,7 @@
 | Vercel 계정 + GitHub 레포 연결 | vercel.com | 무료~ | P0-S6-T4 |
 | GitHub 레포 | github.com | 무료 | P0-S6 |
 | Apple Music API (Team ID·Key ID·.p8) | Apple Developer | $99/년 | P1-S2-T0a |
-| Spotify Client ID/Secret | developer.spotify.com | 무료 | P1-S2-T0b |
+| Spotify Client ID/Secret | developer.spotify.com | 무료였으나 현재 Premium 요구로 **보류** | P1-S2-T0b |
 | YouTube Data API 키 | Google Cloud Console | 무료(쿼터) | P1-S2-T0c |
 | Genius access token | genius.com/api-clients | 무료 | P1-S2-T0d |
 | Anthropic API 키 | console.anthropic.com | 사용량 과금 | P1-S3-T0 |
@@ -37,7 +37,7 @@
 
 - [ ] **P1-S1-T5** 🧑 최초 운영자 계정 생성·이메일 전달
 - [ ] **P1-S2-T0a** 🧑 Apple Music API 키 발급
-- [ ] **P1-S2-T0b** 🧑 Spotify API 키 발급
+- [ ] ⏸️ **P1-S2-T0b** 🧑 Spotify API 키 발급 — 보류 (2026-08-28: 무료 계정으로 Web API 접근 불가, Premium 요구. 필수 아니라서 스킵하고 진행 중)
 - [ ] **P1-S2-T0c** 🧑 YouTube Data API 키 발급
 - [ ] **P1-S2-T0d** 🧑 Genius API 키 발급
 - [ ] **P1-S3-T0** 🧑 Anthropic API 키 발급·결제수단 등록

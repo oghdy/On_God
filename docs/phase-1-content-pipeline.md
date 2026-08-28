@@ -39,14 +39,14 @@
 
 - 🧑 **P1-S2-T0a** — **Apple Music API 키 발급**
   *당신: Apple Developer 계정($99/년)에서 MusicKit 키(Team ID, Key ID, .p8) 발급 → 전달*
-- 🧑 **P1-S2-T0b** — **Spotify API 키 발급**
-  *당신: [developer.spotify.com](https://developer.spotify.com)에서 앱 생성 → Client ID/Secret 전달*
+- ⏸️ **P1-S2-T0b** — **Spotify API 키 발급 — 보류**
+  *2026-08-28: Spotify 개발자 대시보드가 "Upgrade to Premium to access the Web API" 메시지로 막힘 (최근 정책 변경으로 보임, 무료 계정으로는 API 접근 자체가 막힌 상태). Spotify는 필수 provider가 아니라서(앨범커버/장르/발매연도는 Apple Music이 커버) 일단 건너뛰고 나머지 먼저 진행하기로 함. 나중에 Premium 구독하거나 다른 계정으로 재시도하면 그때 어댑터 추가*
 - 🧑 **P1-S2-T0c** — **YouTube Data API 키 발급**
   *당신: Google Cloud Console에서 YouTube Data API v3 활성화 → API 키 전달*
 - 🧑 **P1-S2-T0d** — **Genius API 키 발급**
   *당신: [genius.com/api-clients](https://genius.com/api-clients)에서 앱 생성 → access token 전달*
 - 🤖 **P1-S2-T1** — Apple Music 어댑터 (앨범커버·링크·장르·발매연도)
-- 🤖 **P1-S2-T2** — Spotify 어댑터 (트랙 링크·popularity)
+- ⏸️ **P1-S2-T2** — Spotify 어댑터 (트랙 링크·popularity) — 키 발급 보류라 같이 보류
 - 🤖 **P1-S2-T3** — YouTube 어댑터 (MV/오디오 매칭)
 - 🤖 **P1-S2-T4** — Genius 어댑터 (원문 가사 + 출처 URL)
 - 🤖 **P1-S2-T5** — 어댑터 계약 테스트 (mock/녹화)
