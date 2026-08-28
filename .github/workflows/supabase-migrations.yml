@@ -1,0 +1,28 @@
+name: Supabase Migrations
+
+# 마이그레이션 SQL이 실제로 순서대로 깨끗하게 적용되는지 로컬(Docker) Supabase 스택에
+# 검증한다. dev/prod 프로젝트에는 손대지 않는다 — 완전히 격리된 로컬 인스턴스.
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+
+jobs:
+  validate-migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase stack
+        run: supabase start
+
+      - name: Re-apply all migrations from scratch
+        run: supabase db reset
+
+      - name: Stop local Supabase stack
+        if: always()
+        run: supabase stop
