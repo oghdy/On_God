@@ -188,4 +188,17 @@
 - P0-S6-T3(EAS)·T4(Vercel)는 🤝 — 내 쪽 준비물(`eas.json`/`vercel.json`/시크릿 목록)은 끝났고, 계정 연결은 사람 몫
 - **Phase 0 나머지**: P0-S2-T7(seed 스크립트)만 미완료. 그 외 S1·S3·S4·S5(T4 제외)·S6(T1/T2/T5)까지 전부 완료 — Phase 0 종료 기준 대부분 충족
 
+## 2026-08-28 · P0-S3-T1 후속 — 손으로 쓴 DB 타입을 CLI 생성 타입으로 교체
+
+**Task**: [P0-S3-T1](../phase-0-foundation.md#s3-공유-패키지-타입설정유틸)
+**한 일**: `packages/db/src/types/database.ts`를 CLI가 실제 생성한 타입으로 전량 교체
+**왜 이렇게**:
+- 이전 로그(P0-S3-T1~T5)에서 "Docker가 없어서 손으로 옮겨 적었다"고 기록했는데, 이건 불필요한 우회였음이 밝혀짐. `supabase gen types typescript --project-id <ref>`는 **로컬 컨테이너 없이 클라우드에 연결된 프로젝트에서 직접** 타입을 생성한다 (Docker가 필요한 건 완전 오프라인 로컬 스택 `supabase start`를 쓸 때뿐). 설계 세션이 `ongod-dev`(ref `bauchkybtccrclasheqf`)에 대해 이 명령을 직접 실행해 확인
+- 손으로 쓴 버전과 diff한 결과 스타일 차이가 아니라 **구조적 차이**가 있었음: `export interface Database` vs 실제 CLI의 `export type Database`, `__InternalSupabase.PostgrestVersion` 메타 필드 누락 등. `createClient<Database>()`에서 실제로 영향 줄 수 있는 부분이라 그대로 둘 수 없었음
+**변경 파일**: `packages/db/src/types/database.ts` (전량 교체)
+**검증**:
+- `packages/db/src/client.ts`, `packages/db/src/index.ts`의 `Database`/`Tables`/`TablesInsert`/`TablesUpdate` 참조가 새 타입과 이름·형태 그대로 호환되는지 grep으로 확인
+- `tsc --noEmit -p packages/db/tsconfig.json` 통과
+**막힌 점 / 다음 할 일**: 없음. `docs/human-actions.md`의 "Docker 설치(선택)" 항목은 더 이상 해당 없어 제거함
+
 <!-- 아래에 새 로그 항목을 계속 추가한다 -->

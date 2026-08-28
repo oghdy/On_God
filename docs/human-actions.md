@@ -27,8 +27,7 @@
 - [x] **P0-S2-T1** 🧑 Supabase dev/prod 프로젝트 2개 생성 → URL·키·DB password 전달 (완료, [로그](./logs/backend-log.md#2026-08-28--p0-s2-t1t8--supabase-devprod-프로젝트-생성-및-스키마-적용))
 - [x] **P0-S2-T2** 🤝 `supabase login` 브라우저 인증, project ref 제공 (완료)
 - [x] **P0-S2-T8** 🤝 마이그레이션 적용 시 CLI 인증/DB password 입력 (완료)
-- [x] **P0-S3-T1** 🤝 타입 자동생성 위해 project ref·로그인 상태 제공 — project ref는 `.env`에 이미 있어서 추가로 필요 없었음. 대신 이 환경에 Docker가 없어 CLI 자동생성 자체가 안 됨(마이그레이션 SQL 기준으로 손으로 타입 작성함, [로그](./logs/backend-log.md#2026-08-28--p0-s3-t1t5--packagesdb--packagescore-도메인-타입공유-유틸))
-  - [ ] *(선택)* 로컬에 Docker Desktop/Podman 설치하면 `pnpm --filter @ongod/db gen:types`로 CLI가 실제 생성한 타입과 손으로 쓴 타입이 일치하는지 검증할 수 있음 — 급하지 않음
+- [x] **P0-S3-T1** 🤝 타입 자동생성 위해 project ref·로그인 상태 제공 — 완료. Docker는 필요 없었음: `supabase gen types typescript --project-id <ref>`가 로컬 컨테이너 없이 클라우드 dev 프로젝트에서 직접 타입을 생성함. 손으로 쓴 버전은 CLI 실제 출력으로 교체함 ([로그](./logs/backend-log.md#2026-08-28--p0-s3-t1-후속--손으로-쓴-db-타입을-cli-생성-타입으로-교체))
 - [ ] **P0-S5-T4** 🧑 발급한 시크릿 값들을 `.env`/Supabase·Vercel·EAS에 입력 — Supabase 부분은 완료, 나머지는 Phase 1 외부 API 키 발급 후
 - [ ] **P0-S6-T3** 🤝 Expo 계정 생성·EAS 프로젝트 연결 (`eas.json` 프로파일은 준비함, [로그](./logs/backend-log.md#2026-08-28--p0-s6-t1t5--cicd-기초) 참고)
 - [ ] **P0-S6-T4** 🤝 Vercel에 GitHub 레포 연결, 환경변수 입력 (`vercel.json`·환경변수 목록은 준비함, [`docs/secrets-policy.md`](./secrets-policy.md) 참고)
