@@ -96,6 +96,8 @@
 | [decisions/](./decisions/) | ADR (결정 근거) | 결정할 때만, 불변 |
 | [logs/](./logs/) | 실제 작업 기록 | 매 Task마다 |
 | [human-actions.md](./human-actions.md) | 사람이 할 일 모음 | 필요시 |
+| [secrets-policy.md](./secrets-policy.md) | 시크릿 분리 정책 (로컬/Supabase/Vercel/EAS) | 낮음 |
+| [branching-and-commits.md](./branching-and-commits.md) | 브랜치 전략·커밋 컨벤션 | 낮음 |
 
 ## 진행 상태 추적
 
