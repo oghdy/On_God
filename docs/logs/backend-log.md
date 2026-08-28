@@ -226,4 +226,36 @@
 - **Phase 0 전부 완료** (S1~S6). 남은 건 전부 🧑/🤝: P0-S5-T4(Phase 1 API 키), P0-S6-T3(EAS 계정), P0-S6-T4(Vercel 연결)
 - 다음 자연스러운 단계는 Phase 1(Content Pipeline) — 단, P1-S2-T0*/P1-S3-T0(외부 API 키 발급)가 먼저 필요함
 
+## 2026-08-28 · P1-S1-T1~T4 — 어드민 로그인 + 보호 라우트 + service-role 경계
+
+**Task**: [P1-S1-T1~T4](../phase-1-content-pipeline.md#s1-어드민-앱-기반)
+**한 일**:
+- `apps/admin/lib/env.ts`(`NEXT_PUBLIC_*`, 클라이언트 노출 가능) / `env.server.ts`(`server-only`, service-role·`ADMIN_EMAILS`)로 env를 분리. `ADMIN_EMAILS`는 콤마 구분 이메일 목록을 zod로 파싱해 배열로 변환
+- `lib/supabase/server.ts`(Server Component/Action용, `@supabase/ssr`의 쿠키 기반 세션 클라이언트), `lib/supabase/middleware.ts`(요청마다 세션 갱신), `lib/supabase/service-role.ts`(`@ongod/db`의 `createServiceRoleClient` 재사용, `import "server-only"`로 감쌈)
+- 루트 `middleware.ts`: 로그인 안 됐거나 `ADMIN_EMAILS`에 없는 이메일이면 `/login`으로 리다이렉트, 이미 인가된 상태로 `/login`에 오면 `/`로 리다이렉트
+- `app/login/`: `signIn`/`signOut` Server Action(`actions.ts`) + `useActionState`로 에러를 보여주는 로그인 폼(`page.tsx`). 로그인 성공해도 `ADMIN_EMAILS`에 없으면 그 자리에서 다시 sign out시키고 에러 반환 — 미들웨어 리다이렉트 한 바퀴 도는 대신 즉시 명확한 메시지를 줌
+- `lib/auth/require-admin.ts`: `app/(admin)/layout.tsx`에서 호출하는 재검증 헬퍼 — 미들웨어가 실수해도 안전하도록 이중 확인
+- `app/(admin)/layout.tsx`: 사이드바 UI 셸(대시보드/곡 등록/검수 큐/예약 발행 — 뒤 3개는 아직 라우트 없어서 비활성 표시만) + 로그아웃 버튼. `app/(admin)/page.tsx`: 대시보드 placeholder. 기존 `app/page.tsx`는 대체돼서 삭제
+- `apps/admin/.env.example`(커밋됨, 값 비움) + `apps/admin/.env.local`(gitignore, 루트 `.env`의 dev 값을 변환해 채움: `SUPABASE_DEV_URL`→`NEXT_PUBLIC_SUPABASE_URL` 등) + `.claude/launch.json`(admin dev 서버 preview 설정) 추가
+- `docs/secrets-policy.md`에 `ADMIN_EMAILS` 항목과 "admin은 루트 `.env`를 안 읽는다" 설명 추가
+
+**왜 이렇게**:
+- **역할 검증 방식**: ADR-0001이 이미 "운영자는 단일/소수, DB role은 과설계"라고 결정해둠 → `profiles.role` 컬럼 같은 거 새로 안 만들고 env var allowlist로 구현. 공동 운영자가 늘어나면 ADR-0001이 예고한 대로 그때 `profiles.role`을 추가하면 됨
+- **Server Action 기반 로그인**(client-side Supabase JS 안 씀): `signInWithPassword`를 서버에서 실행하면 쿠키 세팅까지 한 번에 끝나서 클라이언트에 별도 Supabase 클라이언트/상태관리가 필요 없음. `<form action={signIn}>`은 JS 없이도 동작하는 progressive enhancement
+- **`server-only` 패키지로 경계 강제**: 주석/컨벤션이 아니라 빌드 타임에 강제되는 걸 원해서, `service-role.ts`에 `import "server-only"`를 넣음. **실제로 클라이언트 컴포넌트에서 import하도록 임시로 바꿔서 빌드가 진짜 실패하는지 검증**한 뒤 원상복구함 — "경계가 있다"는 주장을 코드 리뷰가 아니라 실제 실패로 확인
+- **이중 검증**(middleware + `requireAdmin()`): Supabase 공식 Next.js 가이드가 강조하는 패턴. middleware의 matcher 설정을 잘못 건드리는 실수가 나중에 일어나도, 각 보호된 layout에서 다시 확인하니 뚫리지 않음
+- **`ADMIN_EMAILS`에 `hadyon76@gmail.com`을 임시로 넣음**: 시스템에 등록된 사용자 이메일을 기본값으로 썼지만, 이게 Supabase Auth 로그인에 실제로 쓸 이메일인지는 확인 안 됐음 — P1-S1-T5(운영자 계정 생성) 진행 시 사람이 실제 로그인 이메일을 알려주면 그걸로 맞출 것
+
+**변경 파일**: `apps/admin/**`(신규: `lib/`, `middleware.ts`, `app/login/`, `app/(admin)/`, `.env.example`; 수정: `package.json`; 삭제: `app/page.tsx`), `.claude/launch.json`, `docs/secrets-policy.md`
+
+**검증**:
+- `pnpm --filter @ongod/admin typecheck/lint/build` 전부 통과
+- **`server-only` 경계 실제 파괴 테스트**: `app/login/page.tsx`(클라이언트 컴포넌트)에 `import "@/lib/supabase/service-role"`를 임시로 추가 → `next build`가 정확히 그 이유로 실패하는 것 확인(`You're importing a component that needs "server-only"...`) → 되돌리고 재빌드 성공 확인
+- 브라우저로 직접 확인(`pnpm --filter @ongod/admin dev`, Browser 도구): `/` 접속 시 `/login`으로 자동 리다이렉트됨 확인 → 로그인 폼에 존재하지 않는 계정으로 제출 → "이메일 또는 비밀번호가 올바르지 않다" 에러가 화면에 뜨는 것까지 실제 dev Supabase 프로젝트와 통신해서 확인 (서버 로그에 `POST /login 200` 정상 응답)
+- 로그인 **성공** 케이스는 실제 운영자 계정이 아직 없어서(P1-S1-T5, 사람 몫) 미검증 상태로 남음
+
+**막힌 점 / 다음 할 일**:
+- P1-S1-T5(최초 운영자 계정 생성)가 사람 몫으로 남아있음 — 계정 만들고 로그인 이메일 알려주면 `ADMIN_EMAILS` 맞추고 로그인 성공 케이스까지 마저 확인 가능
+- 다음: P1-S2(외부 API 어댑터 실연동) — 여기부턴 API 키(Apple Music/Spotify/YouTube/Genius) 발급이 먼저 필요함. 인터페이스는 P0-S4에서 이미 정의해둔 상태(`@ongod/integrations`)
+
 <!-- 아래에 새 로그 항목을 계속 추가한다 -->

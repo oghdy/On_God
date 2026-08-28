@@ -21,12 +21,13 @@
 
 ### Task
 
-- 🤖 **P1-S1-T1** — Supabase Auth 어드민 로그인 + 운영자 역할 검증 미들웨어
-- 🤖 **P1-S1-T2** — 보호 라우트 레이아웃
-- 🤖 **P1-S1-T3** — 공통 UI 셸 (사이드바)
-- 🤖 **P1-S1-T4** — 서버에서만 service-role 사용 경계 확립 (**ADR-0001**)
-- 🧑 **P1-S1-T5** — 최초 운영자 계정 생성
-  *당신: Supabase Auth에서 본인 운영자 계정 생성(또는 가입 후 운영자 권한 부여), 이메일 전달*
+- [x] 🤖 **P1-S1-T1** — Supabase Auth 어드민 로그인 + 운영자 역할 검증 미들웨어 ([로그](./logs/backend-log.md#2026-08-28--p1-s1-t1t4--어드민-로그인--보호-라우트--service-role-경계))
+  *DB role 대신 `ADMIN_EMAILS` 환경변수 allowlist로 검증 (ADR-0001: "운영자는 단일/소수, DB 역할 시스템은 과설계")*
+- [x] 🤖 **P1-S1-T2** — 보호 라우트 레이아웃 ([로그](./logs/backend-log.md#2026-08-28--p1-s1-t1t4--어드민-로그인--보호-라우트--service-role-경계))
+- [x] 🤖 **P1-S1-T3** — 공통 UI 셸 (사이드바) ([로그](./logs/backend-log.md#2026-08-28--p1-s1-t1t4--어드민-로그인--보호-라우트--service-role-경계))
+- [x] 🤖 **P1-S1-T4** — 서버에서만 service-role 사용 경계 확립 (**ADR-0001**) ([로그](./logs/backend-log.md#2026-08-28--p1-s1-t1t4--어드민-로그인--보호-라우트--service-role-경계))
+- [ ] 🧑 **P1-S1-T5** — 최초 운영자 계정 생성
+  *당신: Supabase Auth(`ongod-dev` 프로젝트)에서 본인 운영자 계정 생성 → 로그인에 쓸 이메일을 알려주면 `apps/admin/.env.local`의 `ADMIN_EMAILS`를 그 값으로 맞출게 (지금은 임시로 `hadyon76@gmail.com`을 넣어뒀음 — 실제 로그인 이메일과 다르면 꼭 알려줘)*
 
 ---
 

@@ -21,6 +21,9 @@
 | Supabase service_role key | `.env`의 `SUPABASE_*_SERVICE_ROLE_KEY` | `supabase secrets set` | Vercel 환경변수(접두사 없이, 서버 전용) | **등록 안 함** — 모바일 앱은 service_role을 쓸 일이 없다 |
 | Apple/Spotify/YouTube/Genius/Anthropic API 키 | `.env` | `supabase secrets set` | Vercel 환경변수(접두사 없이) | **등록 안 함** — 파이프라인은 어드민/Edge Function에서만 실행 |
 | DB 비밀번호 (direct connection) | `/tmp/ongod_{dev,prod}_dbpw.txt` (의도적으로 `.env`에 평문 저장 안 함, [backend-log](./logs/backend-log.md#2026-08-28--p0-s2-t1t8--supabase-devprod-프로젝트-생성-및-스키마-적용) 참고) | 불필요 | 불필요 | 불필요 |
+| 운영자 이메일 allowlist (`ADMIN_EMAILS`) | `apps/admin/.env.local` | 불필요 | Vercel 환경변수(접두사 없이) | 불필요 — 모바일엔 어드민 개념 자체가 없다 |
+
+> `apps/admin`은 루트 `.env`를 직접 읽지 않는다 — Next.js는 앱 자신의 디렉터리(`apps/admin/.env.local`)에서 env를 읽으므로, 루트 `.env`의 `SUPABASE_DEV_*`/`SUPABASE_PROD_*` 값을 그때그때 `apps/admin/.env.local`의 `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY`로 옮겨 넣어야 한다 (값 이름이 바뀐다, 값 자체는 같다). Vercel에선 Preview 환경변수에 dev 값을, Production 환경변수에 prod 값을 이 이름 그대로 등록하면 된다. 스키마는 `apps/admin/lib/env.ts`(클라이언트 노출 가능한 것)와 `apps/admin/lib/env.server.ts`(`server-only`로 감싼 서버 전용 값)로 나뉜다 — P1-S1-T1/T4 참고.
 
 ## 명령어 참고
 
