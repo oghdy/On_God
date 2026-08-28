@@ -1,0 +1,35 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# env / secrets
+.env
+.env.local
+.env.*.local
+
+# build outputs
+dist/
+build/
+.turbo/
+.expo/
+.next/
+out/
+
+# native
+ios/
+android/
+*.ipa
+*.apk
+
+# supabase local
+supabase/.branches
+supabase/.temp
+
+# os / editor
+.DS_Store
+.vscode/
+.idea/
+
+# logs
+*.log
+npm-debug.log*
