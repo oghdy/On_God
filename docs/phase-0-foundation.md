@@ -65,18 +65,16 @@ apps/admin  ─┼─▶ integrations ─▶ db ─▶ core ◀── (core는 �
 
 ### Task
 
-- 🧑 **P0-S2-T1** — Supabase 프로젝트 생성
-  *당신: [supabase.com](https://supabase.com)에서 dev/prod 프로젝트 2개 생성 → 각 **project ref**, **DB password**, **anon key**, **service_role key**, **project URL**을 나에게 전달 (또는 `.env`에 입력)*
-- 🤝 **P0-S2-T2** — Supabase CLI 연동
-  *나: `supabase/` 초기화·config 작성 / 당신: `supabase login`(브라우저 인증) 실행, project ref 제공*
-- 🤖 **P0-S2-T3** — `0001_init_schema.sql`: SRS 7.2의 7개 테이블
-- 🤖 **P0-S2-T4** — `0002_indexes_triggers.sql`: 인덱스 + `update_updated_at` 트리거
-- 🤖 **P0-S2-T5** — `0003_rls_policies.sql`: RLS 정책 (**ADR-0001** — 운영 테이블 쓰기 차단, 유저 테이블 본인 행만)
-- 🤖 **P0-S2-T6** — `0004_constraints.sql`: `daily_picks.status` CHECK 제약, `songs.album_cover_source_url` 컬럼 추가 (**ADR-0003**)
-- 🤖 **P0-S2-T6b** — `0005_pipeline_runs.sql`: 파이프라인 추적 테이블 (**ADR-0002**)
-- 🤖 **P0-S2-T7** — seed 스크립트 (`supabase/seed.sql`) 개발용 샘플 곡
-- 🤝 **P0-S2-T8** — 마이그레이션을 dev에 적용·검증
-  *나: `supabase db push` 명령 준비/실행 / 당신: CLI 인증·DB password 입력이 필요하면 제공*
+- [x] 🧑 **P0-S2-T1** — Supabase 프로젝트 생성 ([로그](./logs/backend-log.md#2026-08-28--p0-s2-t1t8--supabase-devprod-프로젝트-생성-및-스키마-적용))
+  *dev(`ongod-dev`)·prod(`ongod-prod`) 프로젝트를 `ongod` 계정(신규, 서울 리전)에 CLI로 직접 생성함*
+- [x] 🤝 **P0-S2-T2** — Supabase CLI 연동 ([로그](./logs/backend-log.md#2026-08-28--p0-s2-t1t8--supabase-devprod-프로젝트-생성-및-스키마-적용))
+- [x] 🤖 **P0-S2-T3** — `init_schema.sql`: SRS 7.2의 7개 테이블
+- [x] 🤖 **P0-S2-T4** — `indexes_triggers.sql`: 인덱스 + `update_updated_at` 트리거
+- [x] 🤖 **P0-S2-T5** — `rls_policies.sql`: RLS 정책 (**ADR-0001** — 운영 테이블 쓰기 차단, 유저 테이블 본인 행만)
+- [x] 🤖 **P0-S2-T6** — `constraints.sql`: `daily_picks.status` CHECK 제약, `songs.album_cover_source_url` 컬럼 추가 (**ADR-0003**)
+- [x] 🤖 **P0-S2-T6b** — `pipeline_runs.sql`: 파이프라인 추적 테이블 (**ADR-0002**)
+- [ ] 🤖 **P0-S2-T7** — seed 스크립트 (`supabase/seed.sql`) 개발용 샘플 곡
+- [x] 🤝 **P0-S2-T8** — 마이그레이션을 dev·prod 모두에 적용·검증 ([로그](./logs/backend-log.md#2026-08-28--p0-s2-t1t8--supabase-devprod-프로젝트-생성-및-스키마-적용))
 
 ---
 
