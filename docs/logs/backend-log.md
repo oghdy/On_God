@@ -258,4 +258,12 @@
 - P1-S1-T5(최초 운영자 계정 생성)가 사람 몫으로 남아있음 — 계정 만들고 로그인 이메일 알려주면 `ADMIN_EMAILS` 맞추고 로그인 성공 케이스까지 마저 확인 가능
 - 다음: P1-S2(외부 API 어댑터 실연동) — 여기부턴 API 키(Apple Music/Spotify/YouTube/Genius) 발급이 먼저 필요함. 인터페이스는 P0-S4에서 이미 정의해둔 상태(`@ongod/integrations`)
 
+## 2026-08-28 · P1-S1-T5 후속 — ADMIN_EMAILS를 실제 로그인 이메일로 갱신
+
+**Task**: [P1-S1-T5](../phase-1-content-pipeline.md#s1-어드민-앱-기반)
+**한 일**: `apps/admin/.env.local`의 `ADMIN_EMAILS`를 임시값(`hadyon76@gmail.com`)에서 사람이 알려준 실제 테스트 로그인 이메일 `test@ongod.com`으로 교체
+**왜 이렇게**: 사람이 Supabase Auth 로그인 전용으로 실제 사용하지 않는 테스트 이메일(`test@ongod.com`)을 쓰겠다고 함 — 도메인이 실재하지 않아도 Supabase 대시보드에서 "Add user"로 직접 만들면(가입 플로우 아님) 이메일 인증 없이 바로 쓸 수 있어서 문제 없음
+**변경 파일**: `apps/admin/.env.local` (gitignored, 커밋 안 됨)
+**막힌 점 / 다음 할 일**: 사람이 알려준 비밀번호("1234", 4자)는 Supabase Auth 기본 최소 길이(6자)보다 짧아서 대시보드가 계정 생성을 거부할 가능성이 큼 — 6자 이상으로 다시 받아야 함. 계정 생성 완료되면 로그인 성공 케이스까지 마저 확인 예정
+
 <!-- 아래에 새 로그 항목을 계속 추가한다 -->

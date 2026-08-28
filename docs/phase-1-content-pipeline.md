@@ -26,8 +26,8 @@
 - [x] 🤖 **P1-S1-T2** — 보호 라우트 레이아웃 ([로그](./logs/backend-log.md#2026-08-28--p1-s1-t1t4--어드민-로그인--보호-라우트--service-role-경계))
 - [x] 🤖 **P1-S1-T3** — 공통 UI 셸 (사이드바) ([로그](./logs/backend-log.md#2026-08-28--p1-s1-t1t4--어드민-로그인--보호-라우트--service-role-경계))
 - [x] 🤖 **P1-S1-T4** — 서버에서만 service-role 사용 경계 확립 (**ADR-0001**) ([로그](./logs/backend-log.md#2026-08-28--p1-s1-t1t4--어드민-로그인--보호-라우트--service-role-경계))
-- [ ] 🧑 **P1-S1-T5** — 최초 운영자 계정 생성
-  *당신: Supabase Auth(`ongod-dev` 프로젝트)에서 본인 운영자 계정 생성 → 로그인에 쓸 이메일을 알려주면 `apps/admin/.env.local`의 `ADMIN_EMAILS`를 그 값으로 맞출게 (지금은 임시로 `hadyon76@gmail.com`을 넣어뒀음 — 실제 로그인 이메일과 다르면 꼭 알려줘)*
+- [ ] 🧑 **P1-S1-T5** — 최초 운영자 계정 생성 (`ADMIN_EMAILS`는 `test@ongod.com`으로 갱신 완료)
+  *당신: `ongod-dev` 프로젝트 대시보드 → Authentication → Users → Add user에서 `test@ongod.com` 계정 생성. 비밀번호는 Supabase 기본 최소 길이(6자)를 넘겨야 함 — "1234"는 너무 짧아서 대시보드가 거부할 가능성 높음, 6자 이상으로 다시 정해서 알려줘. "Auto Confirm User" 체크 필수*
 
 ---
 
