@@ -7,6 +7,7 @@ import { signOut } from "../login/actions";
 const NAV_ITEMS = [
   { href: "/", label: "대시보드", ready: true },
   { href: "/songs/new", label: "곡 등록", ready: true },
+  { href: "/songs", label: "곡 목록", ready: true },
   { href: "/review", label: "검수 큐", ready: true },
   { href: "/schedule", label: "예약 발행", ready: true },
 ] as const;
