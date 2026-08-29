@@ -326,4 +326,32 @@
 - Genius 매칭 성공률이 낮은 편(5개 중 1개) — P1-S4(오케스트레이션)에서 실패를 어떻게 사람에게 보여줄지(검수 큐에 "가사 수동 입력 필요" 같은 상태로 노출) 설계할 때 감안해야 함
 - Apple Music/Spotify는 여전히 실제 키 없음
 
+## 2026-08-29 · P1-S3-T1~T6 — Claude 어댑터(가사 해석 + 곡 소개 + 성경구절 연계)
+
+**Task**: [P1-S3-T1~T6](../phase-1-content-pipeline.md#s3-ai-가사-해석-파이프라인)
+**한 일**:
+- `packages/integrations/src/adapters/claude.ts` — `TranslationProvider` 구현. `@anthropic-ai/sdk` 공식 SDK 사용(`claude-api` 스킬 가이드에 따름)
+- **구조화된 출력**: 자유 텍스트를 파싱하는 대신 `tool_choice: {type:"tool", name:...}`로 특정 tool 호출을 강제 — `provide_translation`(koreanTranslation, translationNotes), `provide_song_info`(descriptionKo, historicalContextKo, scriptureReference) 두 tool 정의. 응답의 `tool_use.input`을 zod 스키마로 재검증(T6) — 스키마를 어기면 `INVALID_RESPONSE`로 명확히 실패
+- **프롬프트 버전 관리**(T6): `PROMPT_VERSION` 상수를 두고 `ai_model_used`에 `claude-sonnet-5/prompt-v1` 형태로 같이 기록 — 나중에 프롬프트를 바꾸면 이 값도 바뀌어서, DB에 저장된 콘텐츠가 어떤 프롬프트 버전으로 만들어졌는지 추적 가능
+- **가사 해석 프롬프트**(T2): 절/후렴 구조 유지한 자연스러운 의역 + 흑인영가 특유의 이중적 의미(노예 해방·탈출 은유)와 성경 인용 출처를 `translationNotes`에 설명하도록 지시. 확실하지 않은 해석은 단정하지 말라는 지침 포함
+- **곡 소개+역사적 맥락+성경구절**(T3, T4): 검증 안 된 사실 단정 금지, 노예제·인종차별 역사를 존중하는 어조 유지, 성경구절은 실제 근거 있을 때만(억지 연결 금지) 지시
+- `packages/integrations/src/adapters/claude.test.ts` — 계약 테스트 7개. SDK가 내부적으로 쓰는 `fetch`를 `vi.stubGlobal`로 바꾸는 게 안 먹혀서(SDK가 constructor에서 받은 `fetch` 옵션을 우선시하고 전역 참조를 안 씀), `ClaudeConfig`에 테스트 전용 `fetch?` 옵션을 추가해 SDK 표준 방식대로 주입하는 걸로 해결
+- 실제 Anthropic API로 라이브 검증까지 완료 (아래 "검증" 참고)
+
+**왜 이렇게**:
+- **Anthropic 키 인증 이슈**: 사람이 처음 발급한 키로 호출했더니 `anthropic-workspace-id is required when authenticating with an identity-linked API key`라는 400 에러가 남 — 여러 워크스페이스에 걸친 조직 계정에서 발급된 키라 요청마다 워크스페이스를 명시해야 하는 구조였음. 사람이 OnGod 전용 워크스페이스를 새로 만들고 그 안에서 키를 재발급받아 해결 — 헤더를 코드에서 억지로 넘기는 것보다 계정 구조를 정리하는 게 근본적인 해결책이라고 판단해 그쪽으로 안내함
+- **모델 선택(claude-sonnet-5)**: `claude-api` 스킬 가이드는 "명시적 지시 없으면 무조건 opus-5" 원칙이지만, 이 파이프라인은 곡마다 반복 호출되는 운영 비용이 실제로 발생하는 구조라 비용 판단은 임의로 하지 않고 사람에게 확인함(Sonnet 5 $2/$10 vs Opus 5 $5/$25, 1M 토큰당). 번역·문화적 해설처럼 Sonnet 5가 충분히 강한 작업이라 Sonnet 5로 결정. 계획 문서의 `claude-sonnet-4-6`보다도 더 최신·저렴함
+- **tool_choice로 구조화된 출력 강제**: 자유 텍스트 응답을 정규식/휴리스틱으로 파싱하는 것보다 훨씬 안정적이고, zod 검증과 자연스럽게 결합됨. `output_config.format`(구조화된 출력 파라미터) 대신 tool_choice를 쓴 이유는 이 방식이 훨씬 오래 검증된 표준 패턴이고 이 프로젝트 규모에 굳이 새 기능을 끌어올 필요가 없어서
+- **fetch 주입 방식**: `vi.stubGlobal`이 SDK 내부에서 안 먹히는 걸 실제로 겪고 나서, Anthropic SDK가 공식 지원하는 `fetch` 생성자 옵션을 쓰는 걸로 전환 — 이게 SDK가 의도한 테스트 훅이라 억지스러운 우회가 아님
+
+**변경 파일**: `packages/integrations/src/adapters/claude.ts`(신규), `claude.test.ts`(신규), `adapters/index.ts`, `package.json`(`@anthropic-ai/sdk`, `zod` 추가), `.env`(비커밋)
+
+**검증**:
+- `pnpm --filter @ongod/integrations typecheck/lint/test` 전부 통과 (38 tests, claude 관련 7개 신규 — 성공 케이스 2개, tool_use 없음/스키마 위반 각 1개, 401/429 에러 매핑 2개)
+- **실제 Anthropic API 라이브 호출**: Genius에서 확보한 "Go Down Moses" 진짜 원문 가사로 `translateLyrics`/`generateSongInfo` 둘 다 실행 — 절/후렴 구조를 유지한 자연스러운 한국어 번역, 출애굽기 5장·8장 근거를 정확히 짚은 신학적 해설, 노예제와 지하철도(Underground Railroad) 연관성을 "~로 알려져 있다"는 신중한 어조로 서술한 역사적 맥락, `scriptureReference: "출애굽기 8:1"`까지 전부 정확하게 생성됨 확인
+
+**막힌 점 / 다음 할 일**:
+- **Phase 1 S3 전부 완료.** 다음은 S4(오케스트레이션) — 지금까지 만든 5개 provider(Genius/YouTube/Claude는 실키 검증됨, Apple Music/Spotify는 코드만 완성) 중 사용 가능한 것들을 조합해서 실제로 `songs`/`lyrics`/`song_info`를 채우는 로직
+- Apple Music은 사람이 내일쯤 키 발급 예정 — 그 전까지 S4~S7 중 Apple Music 없이 진행 가능한 부분 먼저 진행
+
 <!-- 아래에 새 로그 항목을 계속 추가한다 -->

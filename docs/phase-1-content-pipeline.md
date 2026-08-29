@@ -9,7 +9,7 @@
 
 - [ ] S1. 어드민 앱 기반
 - [ ] S2. 외부 API 어댑터 실연동
-- [ ] S3. AI 가사 해석 파이프라인
+- [x] S3. AI 가사 해석 파이프라인
 - [ ] S4. 곡 등록 & 오케스트레이션
 - [ ] S5. 검수 UI
 - [ ] S6. 예약 발행 시스템
@@ -60,14 +60,16 @@
 
 ### Task
 
-- 🧑 **P1-S3-T0** — **Anthropic API 키 발급**
-  *당신: [console.anthropic.com](https://console.anthropic.com)에서 API 키 발급·결제수단 등록 → 전달*
-- 🤖 **P1-S3-T1** — Claude 어댑터 (`claude-sonnet-4-6`)
-- 🤖 **P1-S3-T2** — 가사 해석 프롬프트 (신학·역사 맥락, 직역+의역, notes)
-- 🤖 **P1-S3-T3** — 곡 소개 + 역사적 맥락 생성
-- 🤖 **P1-S3-T4** — 성경구절 연계 생성 (선택)
-- 🤖 **P1-S3-T5** — `ai_model_used` 기록, `is_verified=false` 저장
-- 🤖 **P1-S3-T6** — 프롬프트 버전 관리 + zod 출력 검증
+- [x] 🧑 **P1-S3-T0** — **Anthropic API 키 발급** ([로그](./logs/backend-log.md#2026-08-29--p1-s3-t1t6--claude-어댑터-가사-해석--곡-소개--성경구절-연계))
+  *완료 — 최초 발급받은 키가 여러 워크스페이스에 걸친 "identity-linked" 키라 `anthropic-workspace-id` 필요 에러가 남. OnGod 전용 워크스페이스를 새로 만들고 그 안에서 키를 재발급받아 해결*
+- [x] 🤖 **P1-S3-T1** — Claude 어댑터 (`claude-sonnet-5`) ([로그](./logs/backend-log.md#2026-08-29--p1-s3-t1t6--claude-어댑터-가사-해석--곡-소개--성경구절-연계))
+  *계획 문서엔 `claude-sonnet-4-6`이라 적혀 있었으나, 더 최신·저렴한 `claude-sonnet-5`(비용 대비 이 작업엔 충분)로 사람 확인 후 변경*
+- [x] 🤖 **P1-S3-T2** — 가사 해석 프롬프트 (신학·역사 맥락, 직역+의역, notes) ([로그](./logs/backend-log.md#2026-08-29--p1-s3-t1t6--claude-어댑터-가사-해석--곡-소개--성경구절-연계))
+- [x] 🤖 **P1-S3-T3** — 곡 소개 + 역사적 맥락 생성 ([로그](./logs/backend-log.md#2026-08-29--p1-s3-t1t6--claude-어댑터-가사-해석--곡-소개--성경구절-연계))
+- [x] 🤖 **P1-S3-T4** — 성경구절 연계 생성 (선택) ([로그](./logs/backend-log.md#2026-08-29--p1-s3-t1t6--claude-어댑터-가사-해석--곡-소개--성경구절-연계))
+- [x] 🤖 **P1-S3-T5** — `ai_model_used` 기록, `is_verified=false` 저장 ([로그](./logs/backend-log.md#2026-08-29--p1-s3-t1t6--claude-어댑터-가사-해석--곡-소개--성경구절-연계))
+  *어댑터가 `modelUsed`를 결과에 채워서 반환 — 실제 DB insert는 오케스트레이터(P1-S4)에서, `is_verified` 기본값은 DB 스키마가 이미 처리*
+- [x] 🤖 **P1-S3-T6** — 프롬프트 버전 관리 + zod 출력 검증 ([로그](./logs/backend-log.md#2026-08-29--p1-s3-t1t6--claude-어댑터-가사-해석--곡-소개--성경구절-연계))
 
 ---
 
