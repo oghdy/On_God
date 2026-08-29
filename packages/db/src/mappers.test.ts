@@ -9,6 +9,7 @@ describe("fromLyricsRow", () => {
       id: "l1",
       song_id: "s1",
       original_text: null,
+      source_url: null,
       korean_translation: null,
       translation_notes: null,
       ai_model_used: null,

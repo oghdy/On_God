@@ -354,4 +354,41 @@
 - **Phase 1 S3 전부 완료.** 다음은 S4(오케스트레이션) — 지금까지 만든 5개 provider(Genius/YouTube/Claude는 실키 검증됨, Apple Music/Spotify는 코드만 완성) 중 사용 가능한 것들을 조합해서 실제로 `songs`/`lyrics`/`song_info`를 채우는 로직
 - Apple Music은 사람이 내일쯤 키 발급 예정 — 그 전까지 S4~S7 중 Apple Music 없이 진행 가능한 부분 먼저 진행
 
+## 2026-08-29 · P1-S4-T1~T7 — 곡 등록 + 오케스트레이터
+
+**Task**: [P1-S4-T1~T7](../phase-1-content-pipeline.md#s4-곡-등록--오케스트레이션), [P1-S2-T6](../phase-1-content-pipeline.md#s2-외부-api-어댑터-실연동)
+**한 일**:
+- **`apps/admin/lib/pipeline/providers.ts`**: env에 있는 키만으로 provider를 조립. Apple Music/Spotify는 조건부로만 등록 — 이게 그대로 부분 성공 처리(P1-S2-T6)의 토대가 됨
+- **`apps/admin/lib/pipeline/orchestrator.ts`**(`runPipeline`): 메타데이터 병렬 수집(`Promise.allSettled`) → `songs` insert(장르/앨범/발매연도는 Apple Music 우선, 없으면 Spotify; 각 provider의 externalId/externalUrl은 각자의 DB 컬럼에) → 가사 수집(Genius) → 성공하면 번역+곡소개 병렬 생성(Claude) → (Storage 버킷 없어서) 앨범커버는 스킵 → 각 단계 결과를 `pipeline_runs.steps`(jsonb)에 기록, 최종 상태를 `done`/`partial`/`failed`로 계산
+- **곡 등록 폼**(`app/(admin)/songs/new/`): `title`+`artist` 입력 → 중복 감지(`ilike` 대소문자 무시 비교) → `pipeline_runs` 행 생성 → **Next.js `after()`**로 오케스트레이터 실행 → 즉시 진행상황 페이지로 리다이렉트
+- **진행상황 페이지**(`app/(admin)/pipeline-runs/[id]/`): `status`가 `running`이면 3초마다 자동 새로고침(클라이언트 컴포넌트가 `router.refresh()`), 단계별 상태를 색깔로 구분해 표시
+- `packages/db/src/types/database.ts`/`mappers.ts`/`packages/core`에 `lyrics.source_url` 컬럼(가사 출처, 저작권 표기용) 추가 — Genius 어댑터가 이미 `sourceUrl`을 반환하는데 DB에 저장할 곳이 없었던 걸 이번에 발견. ADR-0003의 `album_cover_source_url`과 같은 패턴이라 마이그레이션 새로 추가(`20260829000001_lyrics_source_url.sql`)
+- **버그 발견 및 수정**: `errorMessage()` 헬퍼가 `error instanceof Error`만 확인해서, supabase-js의 `PostgrestError`(Error를 상속하지 않는 plain object)를 만나면 `String(error)` → `"[object Object]"`로 뭉개버리는 문제 발견. `.message` 속성이 있으면 그걸 쓰고, 그것도 안 되면 `JSON.stringify`로 폴백하도록 수정
+- `@types/react`/`@types/react-dom`을 `^19.0.0`(latest 자동 추적)에서 `19.1.17`/`19.1.9`로 고정 — 19.2.x가 `RootLayout`의 `{children}` 렌더링조차 타입 에러 내는 회귀 버그를 갖고 있어서(자체 재현: 새로 만든 파일이 아니라 P0-S1부터 있던 `app/layout.tsx`에서도 똑같이 발생) 알려진 안정 버전으로 되돌림
+
+**왜 이렇게**:
+- **`after()` vs Supabase Edge Function**(T6): 계획 문서는 Edge Function을 상정했지만, 실제 Edge Function 배포는 별도 인프라 작업(CLI 배포, Deno 런타임에서 npm 패키지 호환성 확인 등)이라 지금 범위에 비해 무거움. Next.js 15의 `after()`는 "응답을 먼저 보내고 같은 요청 생명주기 안에서 나머지를 실행"하는 공식 API라 Vercel의 `waitUntil`류 패턴과 동일한 효과를 얻으면서 별도 배포가 필요 없음. 오케스트레이터 함수 자체는 순수하게 (입력) → (DB 부수효과)라서, 나중에 진짜 Edge Function으로 옮기더라도 이 함수를 거의 그대로 재사용 가능하게 짬 — 완전히 다른 접근이 아니라 "지금 당장 쓸 수 있는 더 가벼운 구현"으로 판단
+- **메타데이터 병합 우선순위(Apple Music > Spotify)**: Apple Music 카탈로그가 흑인영가/가스펠처럼 마이너한 장르에서 더 넓다고 판단(사람이 Apple Music 키 발급 중인 것도 이런 맥락). 각 provider의 고유 ID/URL은 병합하지 않고 각자의 DB 컬럼(`apple_music_id`/`spotify_id`/`youtube_id` 등)에 그대로 저장 — 원래 스키마가 이미 그렇게 설계돼 있어서 자연스러움
+- **`lyrics.source_url` 스키마 갭을 지금 고친 이유**: `human-actions.md`의 출시 체크리스트에 "가사 저작권 출처 표기 최종 점검"이 이미 있었는데, 그걸 지킬 컬럼 자체가 없었음. 나중에 발견하면 이미 쌓인 가사 데이터를 전부 다시 수집해야 하니, 오케스트레이터를 짜는 지금 바로 잡는 게 훨씬 쌈
+- **`errorMessage` 버그를 그냥 넘기지 않은 이유**: 처음 dev DB에서 파이프라인을 실제로 돌렸을 때 `lyrics: failed` 아래 `[object Object]`만 뜨는 걸 보고, "왜 실패했는지 운영자가 알 수 없는 에러 메시지"는 검수 UI(S5)에서도 똑같이 문제가 될 거라 바로 고침. 실제로 고치고 나니 진짜 원인(컬럼 없음)이 정확히 드러남
+- **`@types/react` 19.1.x로 고정한 이유**: `^19.0.0` 범위를 그대로 뒀으면 나중에 pnpm install할 때마다 19.2.x의 최신 patch가 다시 딸려올 수 있음(semver 범위가 자동으로 최신을 골라서). 문제가 확인된 이상 정확한 버전으로 고정해두는 게 재발을 막음
+
+**변경 파일**: `apps/admin/lib/pipeline/**`(신규), `apps/admin/app/(admin)/songs/new/**`(신규), `apps/admin/app/(admin)/pipeline-runs/[id]/**`(신규), `apps/admin/app/(admin)/layout.tsx`(사이드바 링크 활성화), `apps/admin/lib/env.server.ts`(파이프라인 키 스키마 추가), `apps/admin/package.json`(`@ongod/core`/`@ongod/integrations` 추가, `@types/react*` 버전 고정), `apps/admin/.env.local`(비커밋), `packages/db/src/types/database.ts`/`mappers.ts`/`mappers.test.ts`, `packages/core/src/domain/types.ts`, `supabase/migrations/20260829000001_lyrics_source_url.sql`(신규, dev/prod 미적용)
+
+**검증**:
+- `pnpm --filter @ongod/admin typecheck/lint/build` 전부 통과
+- **브라우저로 실제 end-to-end 검증**(dev Supabase, `test@ongod.com` 계정으로 실제 로그인):
+  1. "Go Down Moses"/"Traditional" 첫 등록 → 파이프라인 실행 → YouTube 메타데이터 정상 수집(`songs.youtube_url` 채워짐), Genius는 성공했으나 **`lyrics` insert가 DB 에러로 실패**(아래 참고)
+  2. 같은 곡 재등록 시도 → **중복 감지가 정확히 차단**(`이미 등록된 곡이다... song id: ...`)
+  3. "Wade in the Water"/"Traditional" 등록 → YouTube 성공, Genius는 매칭 실패(NOT_FOUND, 앞선 로그에서 이미 확인된 패턴) → **`pipeline_runs.status = "partial"`**로 정확히 계산되고 화면에 단계별로 표시됨 → 부분 성공 처리(P1-S2-T6) 실제 확인
+  4. 진행상황 페이지가 `running` 상태일 때 자동 새로고침되다가 완료되면 멈추는 것 확인
+- **`[object Object]` 에러를 실제로 재현하고 원인을 추적**: 별도 tsx 스크립트로 `lyrics` insert에 `source_url`을 넣어봤더니 `PGRST204: Could not find the 'source_url' column of 'lyrics' in the schema cache`로 재현 — 마이그레이션 미적용이 진짜 원인임을 확정. `errorMessage()` 수정 후 화면에 이 메시지가 그대로 나오는 것까지 확인
+- 테스트로 생성된 `__column_check__`/`__test__` 더미 곡은 스크립트에서 바로 삭제해 정리함. "Go Down Moses"/"Wade in the Water" 테스트 데이터는 dev DB에 남아있음(이후 재검증에 재사용 가능)
+
+**막힌 점 / 다음 할 일**:
+- **사람 확인 필요(긴급)**: `lyrics.source_url` 마이그레이션을 dev+prod에 SQL Editor로 실행해야 가사 수집이 실제로 저장됨 — `human-actions.md`에 추가함
+- 마이그레이션 적용되면 "Go Down Moses"로 다시 등록(또는 기존 테스트 데이터에 가사만 재시도)해서 T3/T4(가사+AI 해석)까지 end-to-end로 마저 검증할 것
+- P1-S4-T5(앨범커버 Storage)는 T8(버킷 생성, 사람 확인) 대기
+- 다음은 S5(검수 UI) — 지금까지 파이프라인이 채운 `songs`/`lyrics`/`song_info`를 나란히 보여주고 인라인 편집하는 화면
+
 <!-- 아래에 새 로그 항목을 계속 추가한다 -->

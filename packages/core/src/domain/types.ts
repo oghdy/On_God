@@ -36,6 +36,8 @@ export interface Lyrics {
   id: string;
   songId: string;
   originalText: string | null;
+  /** 원문 가사 출처 URL(저작권 표기용). ADR-0003의 album_cover_source_url과 같은 패턴. */
+  sourceUrl: string | null;
   koreanTranslation: string | null;
   translationNotes: string | null;
   aiModelUsed: string | null;

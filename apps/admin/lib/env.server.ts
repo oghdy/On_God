@@ -19,12 +19,32 @@ const serverEnvSchema = z.object({
         .map((email) => email.trim().toLowerCase())
         .filter(Boolean),
     ),
+
+  // --- P1-S2/S3: 콘텐츠 파이프라인 외부 API 키. 전부 optional — 아직 없는 키(Apple
+  // Music/Spotify)의 provider는 파이프라인이 그냥 건너뛴다(부분 성공 처리, P1-S2-T6). ---
+  YOUTUBE_API_KEY: z.string().min(1).optional(),
+  GENIUS_ACCESS_TOKEN: z.string().min(1).optional(),
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  APPLE_MUSIC_TEAM_ID: z.string().min(1).optional(),
+  APPLE_MUSIC_KEY_ID: z.string().min(1).optional(),
+  /** .p8 파일 내용 원문(PEM). .env.local엔 개행을 `\n` 리터럴로 이스케이프해서 한 줄로 저장한다. */
+  APPLE_MUSIC_PRIVATE_KEY: z.string().min(1).optional(),
+  SPOTIFY_CLIENT_ID: z.string().min(1).optional(),
+  SPOTIFY_CLIENT_SECRET: z.string().min(1).optional(),
 });
 
 function loadServerEnv() {
   const result = serverEnvSchema.safeParse({
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     ADMIN_EMAILS: process.env.ADMIN_EMAILS,
+    YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY,
+    GENIUS_ACCESS_TOKEN: process.env.GENIUS_ACCESS_TOKEN,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    APPLE_MUSIC_TEAM_ID: process.env.APPLE_MUSIC_TEAM_ID,
+    APPLE_MUSIC_KEY_ID: process.env.APPLE_MUSIC_KEY_ID,
+    APPLE_MUSIC_PRIVATE_KEY: process.env.APPLE_MUSIC_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+    SPOTIFY_CLIENT_ID: process.env.SPOTIFY_CLIENT_ID,
+    SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET,
   });
   if (!result.success) {
     const issues = result.error.issues

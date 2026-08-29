@@ -61,6 +61,7 @@ export type Database = {
           korean_translation: string | null
           original_text: string | null
           song_id: string
+          source_url: string | null
           translation_notes: string | null
           updated_at: string
         }
@@ -72,6 +73,7 @@ export type Database = {
           korean_translation?: string | null
           original_text?: string | null
           song_id: string
+          source_url?: string | null
           translation_notes?: string | null
           updated_at?: string
         }
@@ -83,6 +85,7 @@ export type Database = {
           korean_translation?: string | null
           original_text?: string | null
           song_id?: string
+          source_url?: string | null
           translation_notes?: string | null
           updated_at?: string
         }

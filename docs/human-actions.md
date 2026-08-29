@@ -35,12 +35,14 @@
 
 ## Phase 1 — Content Pipeline
 
-- [ ] **P1-S1-T5** 🧑 최초 운영자 계정 생성·이메일 전달
+- [x] **P1-S1-T5** 🧑 최초 운영자 계정 생성·이메일 전달 (완료 — `test@ongod.com`, 브라우저 로그인으로 확인됨)
 - [ ] **P1-S2-T0a** 🧑 Apple Music API 키 발급
 - [ ] ⏸️ **P1-S2-T0b** 🧑 Spotify API 키 발급 — 보류 (2026-08-28: 무료 계정으로 Web API 접근 불가, Premium 요구. 필수 아니라서 스킵하고 진행 중)
 - [x] **P1-S2-T0c** 🧑 YouTube Data API 키 발급 (완료, 라이브 검증됨)
 - [x] **P1-S2-T0d** 🧑 Genius API 키 발급 (완료, 라이브 검증됨)
 - [x] **P1-S3-T0** 🧑 Anthropic API 키 발급·결제수단 등록 (완료, 라이브 검증됨 — OnGod 전용 워크스페이스 키로 재발급)
+- [ ] 🆕 **P1-S4 후속** 🧑 `supabase/migrations/20260829000001_lyrics_source_url.sql`을 dev·prod 둘 다에 SQL Editor로 실행
+  *`alter table lyrics add column source_url text;` — 이게 없어서 지금 가사 저장이 dev에서 매번 실패 중(오케스트레이터 실제 테스트로 확인됨)*
 - [ ] **P1-S4-T8** 🧑 Storage 버킷 생성·공개 정책 설정
 - [ ] **P1-S5-T6** 🧑 AI 생성 콘텐츠 신학적/사실 정확성 최종 검수 (지속 운영 업무)
 - [ ] **P1-S6-T7** 🧑 Scheduled Function/pg_cron 활성화·권한 승인

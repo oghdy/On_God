@@ -75,6 +75,7 @@ export function fromLyricsRow(row: Tables<"lyrics">): Lyrics {
     id: row.id,
     songId: row.song_id,
     originalText: row.original_text,
+    sourceUrl: row.source_url,
     koreanTranslation: row.korean_translation,
     translationNotes: row.translation_notes,
     aiModelUsed: row.ai_model_used,
