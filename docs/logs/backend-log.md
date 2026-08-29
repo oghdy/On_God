@@ -499,4 +499,33 @@
 - 남은 건 전부 사람 몫: P1-S2-T0a(Apple Music 키), P1-S4-T8(Storage 버킷), P1-S5-T6(실제 콘텐츠 검수, 지속 운영)
 - Phase 1 종료 기준("곡 1개를 폼 입력만으로 전체 파이프라인 통과 → 완성 콘텐츠 생성" 등)은 오늘 "Go Down Moses" 하나로 이미 실제로 증명됨. 앨범커버 Storage(P1-S4-T5)만 버킷 생기면 마저 붙이면 됨
 
+## 2026-08-29 · P1-S4-T5, P1-S4-T8 — 앨범커버 Storage 복사 + 위젯용 썸네일
+
+**Task**: [P1-S4-T5, T8](../phase-1-content-pipeline.md#s4-곡-등록--오케스트레이션), ADR-0003
+**한 일**:
+- **Storage 버킷 생성**(T8): 사람이 발급해준 Supabase PAT로 Management API가 아니라 **프로젝트 자체의 Storage REST API**(`POST {project_url}/storage/v1/bucket`, 이미 갖고 있던 `SUPABASE_SERVICE_ROLE_KEY`로 인증)를 직접 호출 — `album-covers` 버킷(공개 읽기, 5MB 제한, webp/jpeg/png만 허용)을 dev·prod 둘 다 생성
+- **`songs.album_cover_thumbnail_url` 컬럼 추가**: ADR-0003이 "위젯용 작은 사이즈 변형도 동일 파이프라인에서 함께 생성"한다고 이미 명시했는데 저장할 컬럼이 없었음 — `album_cover_url`(메인 600×600)과 별개로 위젯(P3-S1-T3)이 쓸 150×150 썸네일 경로를 명시적 컬럼으로 추가(마이그레이션 `20260829020000`, dev·prod 적용)
+- **`apps/admin/lib/pipeline/album-cover.ts`**(`copyAlbumCoverToStorage`): 외부 URL → `fetch`로 다운로드 → `sharp`로 WebP 변환(메인 600px, 위젯용 150px, 둘 다 `fit:"cover"`) → Storage에 병렬 업로드 → 공개 URL 반환
+- **오케스트레이터에 통합**: `songs` insert 직후(가사/AI 해석 이후) 이 함수를 호출해서 `songs.album_cover_url`/`album_cover_thumbnail_url`을 Storage 경로로 UPDATE. 실패해도 `album_cover_source_url`엔 원본이 이미 들어있어서 "이미지가 아예 없는" 상태는 아님 — `pipeline_runs.steps.albumCover`에 실패로 기록하고 다음 단계로 계속 진행(부분 성공 처리, P1-S2-T6과 일관)
+- **앨범커버 소스 fallback 확장**: 기존엔 `appleMusic ?? spotify`만 앨범커버로 썼는데, 아직 둘 다 키가 없는 지금은 이러면 커버가 항상 null임. YouTube 썸네일을 최후 fallback으로 추가(`primary?.albumCoverUrl ?? youtube?.albumCoverUrl`) — album/genre/releaseYear는 여전히 `appleMusic ?? spotify`만(YouTube엔 그 정보가 없음), 커버 URL만 별도로 fallback 체인을 늘림
+- 파이프라인 진행상황 페이지(`pipeline-runs/[id]`)에 앨범커버 미리보기 이미지 추가
+
+**왜 이렇게**:
+- **Storage API 직접 호출 vs Management API**: 버킷 생성은 프로젝트 레벨 리소스라 이미 갖고 있는 service_role 키로 충분했음 — 굳이 PAT/Management API를 또 쓸 필요 없이 더 직접적인 경로를 택함(원래 계획엔 "사람이 대시보드에서 버킷 생성"이었지만, PAT 없이도 애초에 service_role 키만으로 가능했던 작업이라는 걸 이번에 확인함 — 다음에 비슷한 Storage 작업이 필요하면 PAT부터 찾을 필요 없이 이 방법을 먼저 시도하면 됨)
+- **YouTube 썸네일을 fallback으로 추가**: "커버 이미지가 아예 없는 것"보다 "영상 썸네일이라도 있는 것"이 사용자 경험상 명백히 나음. Apple Music 키가 생기면 그게 우선순위 1번이라 자동으로 더 정확한 앨범 아트로 교체됨(이 fallback 코드를 나중에 걷어낼 필요조차 없음 — 우선순위 체인이 자연스럽게 처리)
+- **실패해도 계속 진행**: Storage 업로드가 실패해도(네트워크 문제 등) 이미 원본 URL이 `songs.album_cover_url`에 들어있어서 완전 방치 상태가 아님 — 다만 이건 "만료될 수 있는 임시 상태"이므로, 실패 사실은 `pipeline_runs.steps`에 남겨서 나중에 재시도 대상이 뭔지 추적 가능하게 함
+
+**변경 파일**: `supabase/migrations/20260829020000_album_cover_thumbnail.sql`(신규), `apps/admin/lib/pipeline/album-cover.ts`(신규), `apps/admin/lib/pipeline/orchestrator.ts`, `apps/admin/app/(admin)/pipeline-runs/[id]/page.tsx`(썸네일 미리보기), `apps/admin/package.json`(`sharp` 추가), `pnpm-workspace.yaml`(`sharp` postinstall 허용), `packages/db/src/types/database.ts`, `packages/db/src/mappers.ts`, `packages/core/src/domain/types.ts`
+
+**검증**:
+- `pnpm --filter @ongod/admin typecheck/lint/build`, `pnpm --filter @ongod/db typecheck/test`, `pnpm --filter @ongod/core typecheck` 전부 통과
+- Storage 버킷 생성 API 응답 확인 + `GET /storage/v1/bucket` 목록 조회로 실제 존재 확인(dev)
+- **브라우저로 실제 dev DB 대상 검증**: "Swing Low, Sweet Chariot"을 새로 등록 → 파이프라인 진행상황 페이지에 **실제 앨범커버 이미지가 렌더링**됨 확인(YouTube 썸네일 기반), `albumCover: done` 표시
+- DB에서 직접 조회: `album_cover_url`이 Supabase Storage 경로로 바뀌었고 `album_cover_source_url`엔 원본 YouTube 썸네일 URL이 그대로 남아있음(ADR-0003 의도대로) 확인
+- **Storage에 실제 업로드된 파일을 `curl`로 직접 확인**: 메인 이미지(`content-type: image/webp`, 19,542 bytes)와 위젯용 썸네일(`image/webp`, 3,504 bytes) 둘 다 인증 없이 공개 접근 가능(HTTP 200), CORS 헤더도 있음
+
+**막힌 점 / 다음 할 일**:
+- **Phase 1 S4 전부 완료.** 이걸로 Phase 1 전체(S1~S7)가 사람 개입 없이 갈 수 있는 데까지 다 감
+- 남은 건 정말로 사람만 할 수 있는 것뿐: P1-S2-T0a(Apple Music 키 — 발급되면 앨범커버 우선순위 1번으로 자동 승격됨), P1-S5-T6(실제 콘텐츠 검수, 지속 운영)
+
 <!-- 아래에 새 로그 항목을 계속 추가한다 -->

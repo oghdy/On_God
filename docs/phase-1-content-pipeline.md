@@ -10,7 +10,7 @@
 - [x] S1. 어드민 앱 기반
 - [ ] S2. 외부 API 어댑터 실연동 (Apple Music 키 대기, Spotify 보류)
 - [x] S3. AI 가사 해석 파이프라인
-- [ ] S4. 곡 등록 & 오케스트레이션 (Storage 버킷 대기)
+- [x] S4. 곡 등록 & 오케스트레이션
 - [ ] S5. 검수 UI (T6 실제 콘텐츠 검수는 지속 운영 업무)
 - [x] S6. 예약 발행 시스템
 - [x] S7. 어드민 대시보드
@@ -89,13 +89,13 @@
   *`lyrics.source_url` 마이그레이션을 사람이 발급한 Supabase PAT로 dev·prod 둘 다 적용 후 재검증 — 실제 Genius 가사가 `source_url`까지 정확히 저장됨 확인*
 - [x] 🤖 **P1-S4-T4** — AI 해석 → lyrics 업데이트 + song_info 생성 ([로그](./logs/backend-log.md#2026-08-29--p1-s4-t1t7--곡-등록--오케스트레이터))
   *실제 DB row 확인: 한국어 번역·`ai_model_used`·`scripture_reference`·곡 소개 전부 정확히 저장됨*
-- [ ] 🤖 **P1-S4-T5** — 앨범커버 Storage 복사·WebP 변환·위젯용 축소 (**ADR-0003**) — T8(버킷 생성) 대기, 그동안 `album_cover_url`에 원본 외부 URL을 임시로 직접 사용
+- [x] 🤖 **P1-S4-T5** — 앨범커버 Storage 복사·WebP 변환·위젯용 축소 (**ADR-0003**) ([로그](./logs/backend-log.md#2026-08-29--p1-s4-t5-p1-s4-t8--앨범커버-storage-복사--위젯용-썸네일))
+  *실제 검증: 새로 등록한 곡의 YouTube 썸네일을 다운로드→WebP 변환→Storage 업로드까지 실행, 공개 URL로 실제 접근·content-type 확인(메인 600×600 WebP 19.5KB, 위젯용 150×150 WebP 3.5KB)*
 - [x] 🤖 **P1-S4-T6** — 파이프라인 비동기 실행, 진행상태 추적 ([로그](./logs/backend-log.md#2026-08-29--p1-s4-t1t7--곡-등록--오케스트레이터))
   *Supabase Edge Function 대신 Next.js `after()` 사용 — 이유는 로그 참고. 브라우저로 실제 검증: 폼 제출 즉시 진행상황 페이지로 이동, 3초 간격 자동 새로고침*
 - [x] 🤖 **P1-S4-T7** — `pipeline_runs` 단계별 상태 갱신 (**ADR-0002**) ([로그](./logs/backend-log.md#2026-08-29--p1-s4-t1t7--곡-등록--오케스트레이터))
   *실제로 "부분 성공" 상태와 단계별 성공/실패/스킵이 화면에 정확히 표시되는 것까지 확인*
-- [ ] 🧑 **P1-S4-T8** — Storage 버킷 생성·공개 정책 설정
-  *당신: Supabase 대시보드에서 앨범커버용 Storage 버킷 생성(또는 내가 만든 SQL/명령 실행 승인)*
+- [x] 🧑 **P1-S4-T8** — Storage 버킷 생성·공개 정책 설정 (완료 — 사람이 준 PAT로 `album-covers` 버킷을 dev·prod 둘 다 직접 생성함, 대시보드 조작 불필요)
 
 ---
 

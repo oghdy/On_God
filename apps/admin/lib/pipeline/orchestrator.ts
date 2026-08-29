@@ -1,7 +1,7 @@
 // P1-S4-T2~T5, T7: SRS 6장 플로우 1~6을 결합하는 오케스트레이터.
 //
 // 흐름: 메타데이터 병렬 수집(T2) → songs 생성 → 가사 수집(T3) → AI 해석+곡 소개(T4)
-// → (아직) 앨범커버 Storage 복사는 버킷이 없어서 스킵(T5, P1-S4-T8 대기).
+// → 앨범커버 Storage 복사·WebP 변환(T5, ADR-0003).
 // 각 단계 성공/실패를 `pipeline_runs.steps`에 기록한다(T7, ADR-0002) — provider 하나가
 // 실패해도 나머지는 계속 진행하는 부분 성공 처리가 이 파일의 핵심이다(P1-S2-T6).
 //
@@ -16,6 +16,7 @@ import type { MetadataResult } from "@ongod/integrations";
 
 import { getServiceRoleClient } from "@/lib/supabase/service-role";
 
+import { copyAlbumCoverToStorage } from "./album-cover";
 import { buildLyricsProvider, buildMetadataProviders, buildTranslationProvider } from "./providers";
 
 interface StepResult {
@@ -79,8 +80,11 @@ export async function runPipeline(params: RunPipelineParams): Promise<void> {
   const appleMusic = byName.get("apple-music");
   const spotify = byName.get("spotify");
   const youtube = byName.get("youtube");
-  // 앨범/장르/발매연도/커버는 Apple Music을 우선한다(카탈로그가 가장 넓음), 없으면 Spotify.
+  // 앨범/장르/발매연도는 Apple Music을 우선한다(카탈로그가 가장 넓음), 없으면 Spotify.
   const primary = appleMusic ?? spotify ?? null;
+  // 앨범커버만은 YouTube 썸네일까지 최후 fallback으로 쓴다 — Apple Music/Spotify가 아직
+  // 없는 지금(2026-08-29), 앨범커버가 아예 없는 것보다 영상 썸네일이라도 있는 게 낫다.
+  const sourceCoverUrl = primary?.albumCoverUrl ?? youtube?.albumCoverUrl ?? null;
 
   steps.metadata = {
     status: byName.size > 0 ? "done" : "failed",
@@ -97,8 +101,8 @@ export async function runPipeline(params: RunPipelineParams): Promise<void> {
         album: primary?.album ?? null,
         release_year: primary?.releaseYear ?? null,
         genre: primary?.genre ?? null,
-        album_cover_url: primary?.albumCoverUrl ?? null,
-        album_cover_source_url: primary?.albumCoverUrl ?? null,
+        album_cover_url: sourceCoverUrl,
+        album_cover_source_url: sourceCoverUrl,
         apple_music_id: appleMusic?.externalId ?? null,
         apple_music_url: appleMusic?.externalUrl ?? null,
         spotify_id: spotify?.externalId ?? null,
@@ -201,11 +205,25 @@ export async function runPipeline(params: RunPipelineParams): Promise<void> {
     }
   }
 
-  // --- 4. 앨범커버 Storage 복사·WebP 변환 (T5) — 버킷 없어서 스킵 ---
-  steps.albumCover = {
-    status: "skipped",
-    detail: "Storage 버킷 미생성 (P1-S4-T8, 사람 확인 대기) — album_cover_url은 당분간 원본 외부 URL을 직접 씀",
-  };
+  // --- 4. 앨범커버 Storage 복사·WebP 변환 (T5, ADR-0003) ---
+  if (!sourceCoverUrl) {
+    steps.albumCover = { status: "skipped", detail: "메타데이터에 앨범커버 URL이 없음" };
+  } else {
+    try {
+      const { albumCoverUrl, albumCoverThumbnailUrl } = await copyAlbumCoverToStorage(songId, sourceCoverUrl);
+      const { error } = await db
+        .from("songs")
+        .update({ album_cover_url: albumCoverUrl, album_cover_thumbnail_url: albumCoverThumbnailUrl })
+        .eq("id", songId);
+      if (error) throw error;
+      steps.albumCover = { status: "done" };
+    } catch (error) {
+      // 실패해도 songs.album_cover_url엔 이미 원본 외부 URL이 들어있어서(위 insert)
+      // 완전히 이미지가 없는 상태는 아니다 — 나중에 만료되면 문제가 되지만, "지금 당장
+      // 이미지가 아예 안 뜨는 것"보다는 나은 상태이므로 그대로 둔다.
+      steps.albumCover = { status: "failed", detail: errorMessage(error) };
+    }
+  }
 
   // --- 최종 상태 (T7) ---
   const statuses = Object.values(steps).map((s) => s.status);

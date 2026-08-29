@@ -253,6 +253,7 @@ export type Database = {
         Row: {
           album: string | null
           album_cover_source_url: string | null
+          album_cover_thumbnail_url: string | null
           album_cover_url: string | null
           apple_music_id: string | null
           apple_music_url: string | null
@@ -272,6 +273,7 @@ export type Database = {
         Insert: {
           album?: string | null
           album_cover_source_url?: string | null
+          album_cover_thumbnail_url?: string | null
           album_cover_url?: string | null
           apple_music_id?: string | null
           apple_music_url?: string | null
@@ -291,6 +293,7 @@ export type Database = {
         Update: {
           album?: string | null
           album_cover_source_url?: string | null
+          album_cover_thumbnail_url?: string | null
           album_cover_url?: string | null
           apple_music_id?: string | null
           apple_music_url?: string | null

@@ -44,18 +44,24 @@ export default async function PipelineRunPage({ params }: { params: Promise<{ id
       </p>
 
       {song ? (
-        <div style={{ marginTop: 16 }}>
-          <h2 style={{ fontSize: 16 }}>
-            {song.title} — {song.artist}
-          </h2>
-          <ul style={{ fontSize: 14, color: "#444" }}>
-            <li>앨범: {song.album ?? "-"}</li>
-            <li>발매연도: {song.release_year ?? "-"}</li>
-            <li>장르: {song.genre ?? "-"}</li>
-            <li>Apple Music: {song.apple_music_url ?? "-"}</li>
-            <li>Spotify: {song.spotify_url ?? "-"}</li>
-            <li>YouTube: {song.youtube_url ?? "-"}</li>
-          </ul>
+        <div style={{ marginTop: 16, display: "flex", gap: 16 }}>
+          {song.album_cover_url ? (
+            <img src={song.album_cover_url} alt="" width={120} height={120} style={{ objectFit: "cover" }} />
+          ) : null}
+          <div>
+            <h2 style={{ fontSize: 16 }}>
+              {song.title} — {song.artist}
+            </h2>
+            <ul style={{ fontSize: 14, color: "#444" }}>
+              <li>앨범: {song.album ?? "-"}</li>
+              <li>발매연도: {song.release_year ?? "-"}</li>
+              <li>장르: {song.genre ?? "-"}</li>
+              <li>Apple Music: {song.apple_music_url ?? "-"}</li>
+              <li>Spotify: {song.spotify_url ?? "-"}</li>
+              <li>YouTube: {song.youtube_url ?? "-"}</li>
+              <li>앨범커버 썸네일: {song.album_cover_thumbnail_url ? "생성됨" : "-"}</li>
+            </ul>
+          </div>
         </div>
       ) : null}
 

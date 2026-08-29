@@ -28,6 +28,8 @@ export interface Song {
   youtubeUrl: string | null;
   albumCoverUrl: string | null;
   albumCoverSourceUrl: string | null;
+  /** 위젯(Phase 3)용 경량 축소판. ADR-0003. */
+  albumCoverThumbnailUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -65,6 +65,7 @@ export function fromSongRow(row: Tables<"songs">): Song {
     youtubeUrl: row.youtube_url,
     albumCoverUrl: row.album_cover_url,
     albumCoverSourceUrl: row.album_cover_source_url,
+    albumCoverThumbnailUrl: row.album_cover_thumbnail_url,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
