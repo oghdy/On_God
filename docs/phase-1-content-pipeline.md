@@ -84,8 +84,10 @@
   *브라우저로 실제 검증: 같은 제목+아티스트 재등록 시도 시 정확히 차단됨 확인*
 - [x] 🤖 **P1-S4-T2** — 오케스트레이터: 메타데이터 병렬 수집 → songs 생성 ([로그](./logs/backend-log.md#2026-08-29--p1-s4-t1t7--곡-등록--오케스트레이터))
   *실제 YouTube API로 검증됨. Apple Music/Spotify는 등록만 되면(키 생기면) 자동으로 병렬 호출 대상에 포함되는 구조라 코드 변경 불필요*
-- [ ] ⏸️ 🤖 **P1-S4-T3** — 가사 수집 → lyrics 생성 — 코드 완료, **dev DB에 `lyrics.source_url` 마이그레이션 미적용이라 실제 insert가 매번 실패 중** (아래 참고). human-actions.md에 요청함
-- [ ] ⏸️ 🤖 **P1-S4-T4** — AI 해석 → lyrics 업데이트 + song_info 생성 — 코드 완료, T3가 선행돼야 해서 같이 대기
+- [x] 🤖 **P1-S4-T3** — 가사 수집 → lyrics 생성 ([로그](./logs/backend-log.md#2026-08-29--p1-s4-t1t7--곡-등록--오케스트레이터))
+  *`lyrics.source_url` 마이그레이션을 사람이 발급한 Supabase PAT로 dev·prod 둘 다 적용 후 재검증 — 실제 Genius 가사가 `source_url`까지 정확히 저장됨 확인*
+- [x] 🤖 **P1-S4-T4** — AI 해석 → lyrics 업데이트 + song_info 생성 ([로그](./logs/backend-log.md#2026-08-29--p1-s4-t1t7--곡-등록--오케스트레이터))
+  *실제 DB row 확인: 한국어 번역·`ai_model_used`·`scripture_reference`·곡 소개 전부 정확히 저장됨*
 - [ ] 🤖 **P1-S4-T5** — 앨범커버 Storage 복사·WebP 변환·위젯용 축소 (**ADR-0003**) — T8(버킷 생성) 대기, 그동안 `album_cover_url`에 원본 외부 URL을 임시로 직접 사용
 - [x] 🤖 **P1-S4-T6** — 파이프라인 비동기 실행, 진행상태 추적 ([로그](./logs/backend-log.md#2026-08-29--p1-s4-t1t7--곡-등록--오케스트레이터))
   *Supabase Edge Function 대신 Next.js `after()` 사용 — 이유는 로그 참고. 브라우저로 실제 검증: 폼 제출 즉시 진행상황 페이지로 이동, 3초 간격 자동 새로고침*

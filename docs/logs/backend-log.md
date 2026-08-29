@@ -391,4 +391,26 @@
 - P1-S4-T5(앨범커버 Storage)는 T8(버킷 생성, 사람 확인) 대기
 - 다음은 S5(검수 UI) — 지금까지 파이프라인이 채운 `songs`/`lyrics`/`song_info`를 나란히 보여주고 인라인 편집하는 화면
 
+## 2026-08-29 · P1-S4-T3/T4 후속 — lyrics.source_url 마이그레이션 적용, 파이프라인 end-to-end 검증 완료
+
+**Task**: [P1-S4-T3~T4](../phase-1-content-pipeline.md#s4-곡-등록--오케스트레이션)
+**한 일**:
+- 사람이 새로 Supabase PAT(`sbp_...`)를 발급해 전달 — `supabase projects list`로 `ongod-dev`/`ongod-prod` 둘 다 접근 가능함을 먼저 확인
+- Management API(`POST /v1/projects/{ref}/database/query`)로 `alter table lyrics add column source_url text;`를 dev·prod 둘 다에 직접 실행. `information_schema.columns` 조회로 실제 컬럼 생성 확인
+- **CLI 마이그레이션 이력 동기화**: Management API로 직접 SQL을 실행하면 `supabase_migrations.schema_migrations`에 자동 기록이 안 된다는 걸 확인(직접 조회해서 최신 버전이 `20260828104705`에 멈춰있는 걸 발견) → 수동으로 `insert into supabase_migrations.schema_migrations (version, name, statements) values ('20260829000001', 'lyrics_source_url', ...)`를 dev·prod 둘 다에 실행해 CLI 관점에서도 "이미 적용됨" 상태로 맞춤 — 안 해두면 나중에 `supabase db push`가 이 마이그레이션을 다시 적용하려다 "컬럼 이미 있음" 에러를 낼 뻔함
+- 이전 테스트로 dev에 남아있던 실패한 테스트 곡("Go Down Moses", "Wade in the Water")을 Management API로 정리(songs/lyrics/song_info/pipeline_runs 관련 행 삭제) 후, 브라우저로 "Go Down Moses"를 처음부터 다시 등록해 **전체 파이프라인을 end-to-end로 재검증**
+- 최종 확인: `metadata: done`, `lyrics: done`, `songInfo: done`, `translation: done`, `albumCover: skipped`(버킷 없음, 의도대로) — 전체 상태 "부분 성공". DB에서 직접 조회해 `lyrics.source_url`(Genius 곡 페이지 URL), `ai_model_used`(`claude-sonnet-5/prompt-v1`), 한국어 번역, `song_info.scripture_reference`(`출애굽기 8:1`), 곡 소개까지 전부 정확히 저장된 것 확인
+
+**왜 이렇게**:
+- **Management API 직접 호출 vs CLI**: CLI(`supabase db push`)는 이 세션의 기존 로그인(다른 계정)과 충돌하거나 별도 프로젝트 링크가 필요해서, PAT를 `Authorization: Bearer`로 바로 쓰는 Management API 쪽이 더 빠르고 확실했음. 대신 CLI가 자동으로 해주는 마이그레이션 이력 기록을 수동으로 챙겨야 했는데, 이걸 빠뜨렸으면 다음에 `supabase db push`를 실행하는 세션(사람이든 다른 에이전트든)이 혼란을 겪었을 것 — 그래서 바로 확인하고 맞춰둠
+- **테스트 데이터를 지우고 재검증한 이유**: 실패했던 테스트 곡을 그대로 두고 "이제 될 것이다"라고 넘어가는 대신, 실제로 처음부터 다시 돌려서 진짜 성공하는지 눈으로 확인하는 게 유일하게 신뢰할 수 있는 검증 방법이라고 판단
+
+**변경 파일**: 없음(스키마는 이미 커밋된 마이그레이션 파일 그대로, 이번엔 그걸 실제 클라우드 DB에 반영만 함)
+
+**검증**: 위 "한 일" 자체가 검증 — Management API로 직접 DB 조회해서 컬럼 생성, 마이그레이션 이력, 최종 저장된 콘텐츠까지 전부 실제 값으로 확인함
+
+**막힌 점 / 다음 할 일**:
+- **Phase 1 S4는 T5(앨범커버 Storage)만 남음** — T8(버킷 생성, 사람 확인) 대기 중
+- 다음은 S5(검수 UI) — 이제 실제 데이터가 dev DB에 있으니 (곡 1개, 가사+번역+곡소개 전부 채워진 상태) 검수 화면을 만들면 바로 실제 데이터로 확인 가능
+
 <!-- 아래에 새 로그 항목을 계속 추가한다 -->
