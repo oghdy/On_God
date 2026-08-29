@@ -444,4 +444,32 @@
 - **Phase 1 S5 자동화 부분(T1~T5) 전부 완료.** T6(실제 콘텐츠 검수)는 사람 몫 — 지금 dev DB의 "Go Down Moses"가 검수 대기 상태(`/review`에서 확인 가능)
 - 다음은 S6(예약 발행 시스템) — `status=scheduled`→`published` 전환, KST 자정 기준 cron
 
+## 2026-08-29 · P1-S6-T1~T7 — 예약 발행 시스템
+
+**Task**: [P1-S6-T1~T7](../phase-1-content-pipeline.md#s6-예약-발행-시스템)
+**한 일**:
+- **`publish_scheduled_daily_picks()`**(`supabase/migrations/20260829010000_publish_scheduled_picks.sql`): `daily_picks`가 `scheduled`이고 `pick_date`가 KST 기준 오늘이거나 지났고, `lyrics`/`song_info` 둘 다 `is_verified=true`인 것만 `published`로 전이하는 plpgsql 함수(T4, T5, T6)
+- **pg_cron**: `create extension pg_cron` 후 `cron.schedule('publish-daily-picks-kst-midnight', '0 15 * * *', 'select public.publish_scheduled_daily_picks();')` — UTC 15:00 = KST 00:00(T3). Management API로 dev·prod 둘 다 실제 설치·등록·활성화까지 완료(`cron.job.active = true`)
+- **`app/(admin)/schedule/`**: 발행 일정 페이지(T1). KST 기준 앞으로 14일 목록, 각 날짜에 배정된 곡 또는 "(비어있음)" 표시, 비어있는 날짜 수를 상단에 경고로(T2). 배정 후보는 **검수 완료된 곡 중 아직 배정 안 된 것만** 드롭다운에 노출
+- `assignSchedule` 액션: `daily_picks` insert. `pick_date` UNIQUE 위반(Postgres 에러코드 `23505`)을 잡아서 "이미 다른 곡이 배정돼 있다"는 한글 메시지로 변환(T2)
+- `unassignSchedule`: `status='scheduled'`인 것만 삭제 가능하게 조건을 걸어서, 이미 발행된(`published`) 항목을 실수로 취소 못 하게 막음
+
+**왜 이렇게**:
+- **Edge Function 대신 pg_cron + DB 함수**(T3): 이 작업은 P1-S4-T6(파이프라인 비동기 실행)과 성격이 다르다 — 파이프라인은 "요청이 들어오면" 실행되지만, 예약 발행은 **아무 요청 없이 순수하게 시각 기반**으로 실행돼야 한다. Next.js `after()`는 요청 생명주기에 종속되니 이 경우엔 애초에 쓸 수 없고, Vercel Cron은 실제 배포(P0-S6-T4, 아직 사람 대기 중)가 있어야 동작한다. pg_cron은 Postgres 안에서 완결되는 방식이라 **애플리케이션 서버가 배포됐는지, 심지어 켜져 있는지와 무관하게** 항상 동작한다 — SRS가 원래 상정한 "Edge Function"보다 오히려 더 견고한 선택이라고 판단해서 바꿈(P1-S4-T6 때와 마찬가지로 원래 계획과 다른 구현을 택한 사례, 이유를 로그로 남겨서 다음 세션이 "왜 Edge Function이 아니지?"라고 헷갈리지 않게 함)
+- **검수 실패 시 "건너뛰기"(T5)**: 발행 실패를 별도 상태로 표시하는 대신, 그냥 `scheduled`로 남겨두고 다음 실행 때 재시도되게 함 — 검수가 그날 중으로 끝나면 자정 이후 첫 cron 실행에서 바로 발행되고, 별도 알림/에러 처리 로직을 새로 만들 필요가 없음. 단점(그날 "오늘의 카드"가 없을 수 있음)은 S7 대시보드에서 "곧 발행일인데 미검수" 경고로 보완할 예정
+- **배정 후보를 검수 완료된 곡으로 제한(T1)**: 미검수 곡도 예약이야 할 수 있지만(어차피 T5가 발행을 막아줌), 애초에 후보에서 빼는 게 운영자가 "왜 예약했는데 발행이 안 되지?"라고 헷갈릴 상황 자체를 없앰
+- **`unassignSchedule`에 `status='scheduled'` 조건**: 이미 발행된 콘텐츠를 관리자 UI에서 실수로 지우면 앱에 노출 중인 카드가 갑자기 사라지는 문제가 생길 수 있어서, 아예 그 경로를 DB 쿼리 조건으로 차단(UI에서도 버튼을 숨기지만, 서버 액션 자체도 이중으로 방어)
+
+**변경 파일**: `supabase/migrations/20260829010000_publish_scheduled_picks.sql`(신규), `apps/admin/app/(admin)/schedule/**`(신규), `apps/admin/app/(admin)/layout.tsx`(사이드바 링크 활성화)
+
+**검증**:
+- `pnpm --filter @ongod/admin typecheck/lint/build` 통과
+- **브라우저로 실제 dev DB 대상 검증**: 검수 완료된 "Go Down Moses"를 오늘 날짜(2026-08-29)로 배정 → "예약됨" 상태로 화면에 반영, "새로 배정" 후보 목록에서 사라짐, 빈 날짜 경고가 14→13으로 갱신
+- **`publish_scheduled_daily_picks()`를 Management API로 직접 호출**(cron이 실제로 KST 자정까지 기다리지 않고도 로직 검증): 1회차 호출 → `status: published`, `published_at` 기록됨 확인 → `lyrics.is_verified`를 일부러 `false`로 되돌리고 재호출 → **빈 결과**(발행 스킵) 확인 → 다시 `true`로 복구 후 재호출 → 정상 발행 확인. 화면에서도 "발행됨" 상태와 취소 버튼이 사라진 것 확인
+- dev·prod 둘 다 `pg_cron` 확장 설치 및 `cron.job` 등록·`active=true` 확인, 마이그레이션 이력 테이블에도 기록
+
+**막힌 점 / 다음 할 일**:
+- **Phase 1 S6 전부 완료.** 실제 KST 자정에 cron이 저절로 도는지는 시간이 지나야 확인되지만, 함수 자체의 정확성은 직접 호출로 이미 검증됨
+- 다음은 S7(어드민 대시보드) — 곡 목록/발행 캘린더/검수 대기 큐/콘텐츠 재고 경고
+
 <!-- 아래에 새 로그 항목을 계속 추가한다 -->

@@ -7,12 +7,12 @@
 
 ## 진행 체크리스트
 
-- [ ] S1. 어드민 앱 기반
-- [ ] S2. 외부 API 어댑터 실연동
+- [x] S1. 어드민 앱 기반
+- [ ] S2. 외부 API 어댑터 실연동 (Apple Music 키 대기, Spotify 보류)
 - [x] S3. AI 가사 해석 파이프라인
-- [ ] S4. 곡 등록 & 오케스트레이션
-- [ ] S5. 검수 UI
-- [ ] S6. 예약 발행 시스템
+- [ ] S4. 곡 등록 & 오케스트레이션 (Storage 버킷 대기)
+- [ ] S5. 검수 UI (T6 실제 콘텐츠 검수는 지속 운영 업무)
+- [x] S6. 예약 발행 시스템
 - [ ] S7. 어드민 대시보드
 
 ---
@@ -119,14 +119,19 @@
 
 ### Task
 
-- 🤖 **P1-S6-T1** — 발행 일정 배정 UI (status=scheduled)
-- 🤖 **P1-S6-T2** — pick_date UNIQUE 충돌·빈 날짜 경고
-- 🤖 **P1-S6-T3** — Scheduled Edge Function (cron, KST 자정)
-- 🤖 **P1-S6-T4** — cron 로직: scheduled → published, published_at 기록
-- 🤖 **P1-S6-T5** — 발행 전 is_verified 검증
-- 🤖 **P1-S6-T6** — 타임존 처리 (KST 일관)
-- 🧑 **P1-S6-T7** — cron 스케줄 활성화
-  *당신: Supabase 대시보드에서 Scheduled Function/pg_cron 활성화·권한 승인이 필요할 수 있음*
+- [x] 🤖 **P1-S6-T1** — 발행 일정 배정 UI (status=scheduled) ([로그](./logs/backend-log.md#2026-08-29--p1-s6-t1t7--예약-발행-시스템))
+  *브라우저로 실제 검증: 검수 완료된 곡 선택 → 날짜 배정 → "예약됨" 상태로 반영*
+- [x] 🤖 **P1-S6-T2** — pick_date UNIQUE 충돌·빈 날짜 경고 ([로그](./logs/backend-log.md#2026-08-29--p1-s6-t1t7--예약-발행-시스템))
+  *앞으로 14일 중 비어있는 날짜를 화면 상단에 경고로 표시. DB의 UNIQUE 제약(23505)을 한글 에러 메시지로 변환*
+- [x] 🤖 **P1-S6-T3** — Scheduled 발행 (cron, KST 자정) ([로그](./logs/backend-log.md#2026-08-29--p1-s6-t1t7--예약-발행-시스템))
+  *Edge Function 대신 pg_cron + DB 함수로 구현(이유는 로그 참고). 실제로 dev·prod 둘 다 `pg_cron` extension 설치하고 cron job 등록·활성화까지 완료(`active: true`)*
+- [x] 🤖 **P1-S6-T4** — cron 로직: scheduled → published, published_at 기록 ([로그](./logs/backend-log.md#2026-08-29--p1-s6-t1t7--예약-발행-시스템))
+  *함수를 직접 호출해 실제 발행 전이 확인: status가 published로 바뀌고 published_at이 정확히 기록됨*
+- [x] 🤖 **P1-S6-T5** — 발행 전 is_verified 검증 ([로그](./logs/backend-log.md#2026-08-29--p1-s6-t1t7--예약-발행-시스템))
+  *실제 검증: lyrics를 미검수로 되돌리고 함수 호출 → 발행 안 되고 건너뜀(빈 결과) 확인, 다시 검수 완료로 되돌리니 정상 발행됨*
+- [x] 🤖 **P1-S6-T6** — 타임존 처리 (KST 일관) ([로그](./logs/backend-log.md#2026-08-29--p1-s6-t1t7--예약-발행-시스템))
+  *cron 실행 시각(UTC 15:00 = KST 00:00)과 날짜 판정(`now() at time zone 'Asia/Seoul'`) 둘 다 KST 기준으로 통일*
+- [x] 🧑 **P1-S6-T7** — cron 스케줄 활성화 (완료 — 사람이 준 PAT로 Management API를 통해 dev·prod 둘 다 직접 설치·등록·활성화까지 마침, 대시보드 조작 불필요)
 
 ---
 

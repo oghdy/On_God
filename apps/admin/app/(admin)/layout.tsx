@@ -8,7 +8,7 @@ const NAV_ITEMS = [
   { href: "/", label: "대시보드", ready: true },
   { href: "/songs/new", label: "곡 등록", ready: true },
   { href: "/review", label: "검수 큐", ready: true },
-  { href: "#", label: "예약 발행 (준비중)", ready: false },
+  { href: "/schedule", label: "예약 발행", ready: true },
 ] as const;
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
