@@ -90,6 +90,22 @@ function pickBestHit(
 }
 
 /** Genius 곡 페이지 HTML에서 `data-lyrics-container` 블록만 뽑아 텍스트로 만든다. */
+/**
+ * Genius의 `[data-lyrics-container]` 안에는 실제 가사 앞에 종종 페이지 헤더 텍스트
+ * ("2 ContributorsGo Down Moses LyricsTraditional" 같은, 기여자 수+제목+"Lyrics"+아티스트가
+ * 붙어 있는 한 줄)가 별도 줄로 섞여 들어온다. HTML class명이 언제든 바뀔 수 있는 스크래핑
+ * 특성상 DOM 선택자로 걸러내는 대신, 이 특정 패턴만 정규식으로 첫 줄에서 제거한다 —
+ * 실제 가사 첫 줄이 우연히 이 모양일 확률은 사실상 없다.
+ */
+function stripGeniusPageHeader(text: string): string {
+  const lines = text.split("\n");
+  if (lines[0] && /^\d+\s*Contributors?.*Lyrics/i.test(lines[0])) {
+    lines.shift();
+    while (lines[0] === "") lines.shift();
+  }
+  return lines.join("\n").trim();
+}
+
 function extractLyricsText(html: string): string {
   const $ = cheerio.load(html);
   const containers = $("[data-lyrics-container='true']");
@@ -97,7 +113,7 @@ function extractLyricsText(html: string): string {
 
   const parts: string[] = [];
   containers.each((_, el) => {
-    const text = $(el).text().trim();
+    const text = stripGeniusPageHeader($(el).text().trim());
     if (text) parts.push(text);
   });
 

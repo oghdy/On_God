@@ -43,7 +43,7 @@
 - [x] **P1-S3-T0** 🧑 Anthropic API 키 발급·결제수단 등록 (완료, 라이브 검증됨 — OnGod 전용 워크스페이스 키로 재발급)
 - [x] **P1-S4 후속** 🧑 `supabase/migrations/20260829000001_lyrics_source_url.sql`을 dev·prod 둘 다에 적용 (완료 — Supabase PAT 발급받아 전달해줘서 Management API로 직접 적용·검증함, 마이그레이션 이력 테이블에도 기록)
 - [ ] **P1-S4-T8** 🧑 Storage 버킷 생성·공개 정책 설정
-- [ ] **P1-S5-T6** 🧑 AI 생성 콘텐츠 신학적/사실 정확성 최종 검수 (지속 운영 업무)
+- [ ] **P1-S5-T6** 🧑 AI 생성 콘텐츠 신학적/사실 정확성 최종 검수 (지속 운영 업무) — 검수 UI 완성됨(`/review`), dev DB에 "Go Down Moses" 1곡이 지금 검수 대기 중
 - [ ] **P1-S6-T7** 🧑 Scheduled Function/pg_cron 활성화·권한 승인
 
 ## Phase 2 — Core App

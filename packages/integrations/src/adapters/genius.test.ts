@@ -36,6 +36,13 @@ const LYRICS_HTML = `
 </body></html>
 `;
 
+// 실제 Genius 페이지에서 관찰된 패턴: 가사 컨테이너 맨 앞줄에 "N Contributors제목 Lyrics아티스트"가 섞여 들어옴.
+const LYRICS_HTML_WITH_PAGE_HEADER = `
+<html><body>
+  <div data-lyrics-container="true">2 ContributorsGo Down Moses LyricsTraditional<br><br>When Israel was in Egypt's Land<br>Let my people go</div>
+</body></html>
+`;
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -61,6 +68,21 @@ describe("createGeniusProvider", () => {
     expect(searchUrl.hostname).toBe("api.genius.com");
     const searchHeaders = (searchCall?.[1] as RequestInit).headers as Record<string, string>;
     expect(searchHeaders.Authorization).toBe("Bearer test-token");
+  });
+
+  it("가사 컨테이너 맨 앞의 Genius 페이지 헤더 텍스트를 제거한다", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(SEARCH_RESPONSE))
+      .mockResolvedValueOnce(htmlResponse(LYRICS_HTML_WITH_PAGE_HEADER));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const provider = createGeniusProvider({ accessToken: "test-token" });
+    const result = await provider.fetchLyrics({ title: "Wade in the Water", artist: "Traditional" });
+
+    expect(result.originalText).not.toContain("Contributors");
+    expect(result.originalText).not.toContain("LyricsTraditional");
+    expect(result.originalText.startsWith("When Israel was in Egypt's Land")).toBe(true);
   });
 
   it("검색 결과가 없으면 NOT_FOUND를 던진다", async () => {

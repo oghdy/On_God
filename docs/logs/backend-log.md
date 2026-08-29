@@ -413,4 +413,35 @@
 - **Phase 1 S4는 T5(앨범커버 Storage)만 남음** — T8(버킷 생성, 사람 확인) 대기 중
 - 다음은 S5(검수 UI) — 이제 실제 데이터가 dev DB에 있으니 (곡 1개, 가사+번역+곡소개 전부 채워진 상태) 검수 화면을 만들면 바로 실제 데이터로 확인 가능
 
+## 2026-08-29 · P1-S5-T1~T5 — 검수 UI
+
+**Task**: [P1-S5-T1~T5](../phase-1-content-pipeline.md#s5-검수-ui)
+**한 일**:
+- `app/(admin)/review/page.tsx`: 검수 큐 목록. `songs`에 `lyrics(is_verified)`/`song_info(is_verified)`를 PostgREST 임베디드 조인으로 한 번에 가져와서(둘 다 `song_id`에 unique 제약이 있어서 배열이 아니라 단일 객체로 옴), 둘 중 하나라도 미검수면 "검수 대기"로 분류
+- `app/(admin)/review/[id]/`: 검수 상세 화면(T1) — 스트리밍 링크(T3) / 원문+한국어 번역(나란히 배치) / 곡 소개+역사적 맥락+성경구절 세 섹션. 각 섹션이 독립된 폼+Server Action이라 한쪽 저장 실패가 다른 쪽에 영향 안 줌
+- **`actions.ts`의 편집 액션은 `update`가 아니라 `upsert(onConflict: "song_id")`를 씀**(T2): 파이프라인이 부분 실패하면 `lyrics`/`song_info` 행 자체가 없을 수 있는데(설계상 정상 상황), 운영자가 검수 화면에서 바로 채워 넣을 수 있어야 하기 때문 — `update`였다면 행이 없을 때 조용히 아무 일도 안 일어나서 "저장했는데 안 됨" 버그가 됐을 것
+- **검수 완료(T4)**: `markVerified`가 `lyrics`/`song_info` 둘 다 `is_verified=true`로. 수동 편집(`updateLyrics`/`updateSongInfo`)은 `is_verified`를 안 건드림 — 사람이 이미 확인한 문장을 오타 하나 고쳤다고 검수 상태가 풀리면 오히려 번거로움
+- **AI 재생성(T5)**: `regenerateTranslation`/`regenerateSongInfo`가 기존 `packages/integrations`의 Claude provider를 그대로 재사용(오케스트레이터와 코드 중복 없음). 재생성 결과는 **`is_verified=false`로 되돌림** — 새로 만든 내용은 다시 검수해야 하니까
+- 각 편집 폼(`lyrics-form.tsx`/`song-info-form.tsx`)에 `key={row?.updated_at ?? "new"}`를 부모(`page.tsx`)에서 넘김 — `revalidatePath` 후 서버가 새 값을 내려줘도 `defaultValue`를 쓰는 비제어(uncontrolled) textarea는 리마운트 전엔 안 갱신되는데, `updated_at`이 바뀌면 React가 컴포넌트를 새로 마운트해서 항상 최신 값을 보여주게 만듦
+- **버그 발견 및 수정**: `actions.ts`에 안 쓰는 상수 `INITIAL_FORM_STATE`를 `export`해뒀다가 `"A 'use server' file can only export async functions, found object"` 런타임 에러로 즉시 걸림 — Next.js Server Action 파일은 async 함수만 값으로 export 가능(타입/인터페이스는 허용). 브라우저로 실제 클릭해보다가 발견, 안 쓰는 export라 바로 삭제
+- **Genius 파싱 개선**: 검수 화면에서 실제 수집된 원문을 보다가 `"2 ContributorsGo Down Moses LyricsTraditional"` 같은 Genius 페이지 헤더 텍스트가 가사 맨 앞줄에 섞여 들어온 걸 발견. `genius.ts`에 `stripGeniusPageHeader()` 추가(정규식으로 `"N Contributors...Lyrics..."` 패턴인 첫 줄만 제거) — HTML class 선택자 대신 정규식을 쓴 이유는 Genius의 class명이 언제든 바뀔 수 있어서, 실제 가사 첫 줄이 우연히 이 모양일 확률은 사실상 없는 안정적인 패턴. dev DB에 이미 저장된 기존 데이터도 Management API로 같은 패턴 제거해 정리
+
+**왜 이렇게**:
+- **섹션별 독립 폼**: 하나의 거대한 폼으로 만들면 스트리밍 링크만 고치고 싶을 때도 가사 전체를 같이 제출해야 해서 실수로 덮어쓸 위험이 있음. 독립된 Server Action 여러 개가 코드량은 조금 늘지만, 각 저장이 원자적이고 실패 지점이 명확해서 유지보수에 유리하다고 판단
+- **`upsert` 채택**: 처음엔 `update`로 짰다가, "가사 수집이 실패한 곡을 검수 화면에서 열면 어떻게 되나?"를 생각해보니 `lyrics` 행이 없어서 `update`가 아무것도 안 하고 조용히 성공(0 rows affected)해버리는 게 보여서 바로 `upsert`로 바꿈 — 부분 성공 설계(P1-S2-T6)를 UI까지 일관되게 반영
+- **`key` prop으로 리마운트 유도**: state 동기화를 위해 `useEffect`로 props 변경을 감지해 수동으로 textarea 값을 갱신하는 방법도 있었지만, React가 이미 제공하는 `key` 기반 리마운트가 코드량이 훨씬 적고 버그 낼 여지가 없어서 이쪽을 택함
+- **Genius 헤더 제거를 지금 고친 이유**: 검수 UI를 실제로 써보지 않았다면 이 문제를 몰랐을 것 — 원문 데이터 품질이 나쁘면 그걸 기반으로 하는 AI 번역/해석 품질도 같이 나빠지므로, 발견한 김에 근본 원인(수집 단계)에서 고치는 게 검수 단계에서 매번 사람이 수동으로 잘라내는 것보다 나음
+
+**변경 파일**: `apps/admin/app/(admin)/review/**`(신규), `apps/admin/app/(admin)/layout.tsx`(사이드바 링크 활성화), `packages/integrations/src/adapters/genius.ts`/`genius.test.ts`(페이지 헤더 제거)
+
+**검증**:
+- `pnpm --filter @ongod/admin typecheck/lint/build`, `pnpm --filter @ongod/integrations typecheck/test`(39 tests, genius 헤더 제거 케이스 추가) 전부 통과
+- **브라우저로 실제 dev DB 대상 end-to-end 검증**: 검수 큐 목록(대기 1건) → 상세 화면 진입 → "검수 완료로 표시" 클릭 → 즉시 "✓ 검수 완료됨" + 큐 목록도 "완료" 섹션으로 이동 확인 → 곡 소개 텍스트를 직접 편집해 저장 → 반영되고 검수 상태는 유지됨 확인 → "AI로 소개 재생성" 클릭 → 실제 Claude 호출로 새 내용 생성되고 `(미검수)`로 초기화됨 확인
+- `"use server"` export 버그를 실제 클릭 중 런타임 에러로 발견 → 수정 → 재빌드·재검증
+- Genius 헤더 제거 로직도 실제 dev DB 데이터로 정리해 확인(더 이상 "Contributors"로 시작하지 않음)
+
+**막힌 점 / 다음 할 일**:
+- **Phase 1 S5 자동화 부분(T1~T5) 전부 완료.** T6(실제 콘텐츠 검수)는 사람 몫 — 지금 dev DB의 "Go Down Moses"가 검수 대기 상태(`/review`에서 확인 가능)
+- 다음은 S6(예약 발행 시스템) — `status=scheduled`→`published` 전환, KST 자정 기준 cron
+
 <!-- 아래에 새 로그 항목을 계속 추가한다 -->
