@@ -274,4 +274,32 @@
 **변경 파일**: `docs/phase-1-content-pipeline.md`, `docs/human-actions.md`
 **막힌 점 / 다음 할 일**: Spotify 어댑터(P1-S2-T2)도 같이 보류. 나머지 3개 키(YouTube/Genius/Apple Music) 발급 진행 중
 
+## 2026-08-28 · P1-S2-T1~T5 — Genius/유튜브/애플뮤직/스포티파이 어댑터 + 계약 테스트
+
+**Task**: [P1-S2-T1~T5](../phase-1-content-pipeline.md#s2-외부-api-어댑터-실연동)
+**한 일**:
+- `packages/integrations/src/adapters/`에 4개 어댑터 구현, `@ongod/integrations/adapters` 서브패스로 export(무거운 의존성인 `jose`/`cheerio`가 기본 import에 안 딸려오게 `./testing`과 같은 방식으로 분리)
+  - **Genius**(`genius.ts`, `LyricsProvider`): 검색 API(JSON) → 곡 페이지 URL 찾기 → 그 페이지 HTML을 fetch해서 `cheerio`로 `[data-lyrics-container='true']` 블록만 파싱해 가사 텍스트 추출. Genius 공식 API가 가사 본문 자체는 안 줘서(ToS) 2단계로 감
+  - **YouTube**(`youtube.ts`, `MetadataProvider`): YouTube Data API v3 search. album/releaseYear/genre 개념이 없어서 항상 null, externalId/externalUrl/albumCoverUrl(썸네일)만 채움
+  - **Apple Music**(`apple-music.ts`, `MetadataProvider`): `jose`로 Team ID/Key ID/.p8을 ES256 서명해 developer token을 직접 만들고, catalog search 호출. 토큰은 인스턴스당 캐시(12시간), 401 받으면 캐시 무효화 후 다음 호출에서 재발급
+  - **Spotify**(`spotify.ts`, `MetadataProvider`): Client Credentials Flow로 access token 발급(만료 60초 전 자동 갱신) 후 검색. 트랙 검색 응답엔 genre가 없어서(아티스트 엔드포인트에만 있음) 항상 null
+- 4개 어댑터 전부 vitest 계약 테스트 작성(총 11개 케이스) — 전역 `fetch`를 `vi.stubGlobal`로 교체해 네트워크 없이 검증. **Apple Music은 `jose`로 실제 EC 키 쌍을 만들어서 진짜 JWT 서명·검증까지 확인**(단순히 응답 매핑만 확인한 게 아니라 서명 로직 자체가 맞는지까지)
+
+**왜 이렇게**:
+- **Apple Music/Spotify도 스텁이 아니라 완성된 구현으로 작성**: 사람이 "키만 없을 뿐, 나머지는 준비해두면 나중에 값만 넣으면 되게"라고 요청함. 두 API 스펙(Apple Music JWT 인증, Spotify Client Credentials Flow) 다 안정적이고 문서화가 잘 돼 있어서 라이브 테스트 없이도 정확하게 구현 가능하다고 판단 — 실제로 Apple Music은 테스트에서 자체 서명·검증까지 통과했으니 로직 정확성은 이미 확인된 상태. 키 발급되면 config 객체(teamId/keyId/privateKey 또는 clientId/clientSecret)만 채워서 `registerAvailableProviders()`(P1-S4, 아직 안 만듦)에 넘기면 끝
+- **Genius를 2단계(API+스크래핑)로 구현**: Genius API가 의도적으로 가사 본문을 안 준다는 게 잘 알려진 제약이라, 실제로 동작하려면 이 방식밖에 없음. 페이지 구조가 바뀌면 깨질 수 있어서 `INVALID_RESPONSE` 에러로 명확히 구분되게 해둠(향후 디버깅 편하도록)
+- **`./adapters` 서브패스 분리**: `jose`/`cheerio`는 무거운 의존성인데, 레지스트리/에러 타입만 쓰는 코드(예: 테스트, 다른 패키지)까지 이걸 번들에 끌고 올 필요 없음 — `./testing`을 분리해둔 기존 패턴을 그대로 따름
+
+**변경 파일**: `packages/integrations/src/adapters/**`(신규), `packages/integrations/package.json`(exports·dependencies 추가: `jose`, `cheerio`)
+
+**검증**:
+- `pnpm --filter @ongod/integrations typecheck/lint/test` 전부 통과 (31 tests, 어댑터 관련 11개 신규)
+- Apple Music JWT: 테스트에서 실제 `jose.generateKeyPair("ES256")`로 키 쌍을 만들고, 어댑터가 만든 토큰을 그 공개키로 `jwtVerify`까지 성공 — 서명 로직이 스펙대로 동작함을 실제로 증명
+- Genius/YouTube/Apple Music/Spotify 전부 **실제 API 키로는 아직 검증 안 함** — 다음 로그에서 진행
+
+**막힌 점 / 다음 할 일**:
+- 실제 Genius/YouTube 키 받으면 라이브 호출로 한 번 더 검증할 예정 (사람이 이미 두 키는 갖고 있다고 함)
+- P1-S2-T6(부분 성공 처리)은 개별 어댑터가 아니라 오케스트레이터(P1-S4, 여러 provider를 조합해서 곡 하나를 채우는 로직) 몫이라 지금은 스킵 — 그때 `pipeline_runs.steps` jsonb에 provider별 성공/실패를 기록하는 형태로 구현 예정
+- Apple Music/Spotify는 여전히 실제 키 없음 — Apple Music은 사람이 곧 발급 예정, Spotify는 보류 상태 유지
+
 <!-- 아래에 새 로그 항목을 계속 추가한다 -->

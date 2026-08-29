@@ -45,12 +45,14 @@
   *당신: Google Cloud Console에서 YouTube Data API v3 활성화 → API 키 전달*
 - 🧑 **P1-S2-T0d** — **Genius API 키 발급**
   *당신: [genius.com/api-clients](https://genius.com/api-clients)에서 앱 생성 → access token 전달*
-- 🤖 **P1-S2-T1** — Apple Music 어댑터 (앨범커버·링크·장르·발매연도)
-- ⏸️ **P1-S2-T2** — Spotify 어댑터 (트랙 링크·popularity) — 키 발급 보류라 같이 보류
-- 🤖 **P1-S2-T3** — YouTube 어댑터 (MV/오디오 매칭)
-- 🤖 **P1-S2-T4** — Genius 어댑터 (원문 가사 + 출처 URL)
-- 🤖 **P1-S2-T5** — 어댑터 계약 테스트 (mock/녹화)
-- 🤖 **P1-S2-T6** — 부분 성공 처리 (일부 실패해도 나머지 저장)
+- [x] 🤖 **P1-S2-T1** — Apple Music 어댑터 (앨범커버·링크·장르·발매연도) ([로그](./logs/backend-log.md#2026-08-28--p1-s2-t1t5--genius유튜브애플뮤직스포티파이-어댑터--계약-테스트))
+  *구현은 완료, 실제 키 없어서 라이브 검증은 아직 — JWT 서명 로직은 테스트용 키 쌍으로 검증함*
+- [x] ⏸️ 🤖 **P1-S2-T2** — Spotify 어댑터 (트랙 링크·popularity) ([로그](./logs/backend-log.md#2026-08-28--p1-s2-t1t5--genius유튜브애플뮤직스포티파이-어댑터--계약-테스트))
+  *구현 완료, 키 발급 보류라 라이브 검증 못 함*
+- [x] 🤖 **P1-S2-T3** — YouTube 어댑터 (MV/오디오 매칭) ([로그](./logs/backend-log.md#2026-08-28--p1-s2-t1t5--genius유튜브애플뮤직스포티파이-어댑터--계약-테스트))
+- [x] 🤖 **P1-S2-T4** — Genius 어댑터 (원문 가사 + 출처 URL) ([로그](./logs/backend-log.md#2026-08-28--p1-s2-t1t5--genius유튜브애플뮤직스포티파이-어댑터--계약-테스트))
+- [x] 🤖 **P1-S2-T5** — 어댑터 계약 테스트 (mock/녹화) ([로그](./logs/backend-log.md#2026-08-28--p1-s2-t1t5--genius유튜브애플뮤직스포티파이-어댑터--계약-테스트))
+- [ ] 🤖 **P1-S2-T6** — 부분 성공 처리 (일부 실패해도 나머지 저장) — 오케스트레이터(P1-S4)에서 실제로 여러 provider를 조합할 때 진행
 
 ---
 
