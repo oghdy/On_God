@@ -38,8 +38,8 @@
 - [ ] **P1-S1-T5** 🧑 최초 운영자 계정 생성·이메일 전달
 - [ ] **P1-S2-T0a** 🧑 Apple Music API 키 발급
 - [ ] ⏸️ **P1-S2-T0b** 🧑 Spotify API 키 발급 — 보류 (2026-08-28: 무료 계정으로 Web API 접근 불가, Premium 요구. 필수 아니라서 스킵하고 진행 중)
-- [ ] **P1-S2-T0c** 🧑 YouTube Data API 키 발급
-- [ ] **P1-S2-T0d** 🧑 Genius API 키 발급
+- [x] **P1-S2-T0c** 🧑 YouTube Data API 키 발급 (완료, 라이브 검증됨)
+- [x] **P1-S2-T0d** 🧑 Genius API 키 발급 (완료, 라이브 검증됨)
 - [ ] **P1-S3-T0** 🧑 Anthropic API 키 발급·결제수단 등록
 - [ ] **P1-S4-T8** 🧑 Storage 버킷 생성·공개 정책 설정
 - [ ] **P1-S5-T6** 🧑 AI 생성 콘텐츠 신학적/사실 정확성 최종 검수 (지속 운영 업무)

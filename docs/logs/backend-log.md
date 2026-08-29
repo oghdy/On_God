@@ -302,4 +302,28 @@
 - P1-S2-T6(부분 성공 처리)은 개별 어댑터가 아니라 오케스트레이터(P1-S4, 여러 provider를 조합해서 곡 하나를 채우는 로직) 몫이라 지금은 스킵 — 그때 `pipeline_runs.steps` jsonb에 provider별 성공/실패를 기록하는 형태로 구현 예정
 - Apple Music/Spotify는 여전히 실제 키 없음 — Apple Music은 사람이 곧 발급 예정, Spotify는 보류 상태 유지
 
+## 2026-08-28 · P1-S2-T3/T4 후속 — YouTube/Genius 실키 라이브 검증, Genius 오매칭 버그 수정
+
+**Task**: [P1-S2-T3~T4](../phase-1-content-pipeline.md#s2-외부-api-어댑터-실연동)
+**한 일**:
+- 사람이 전달한 실제 `YOUTUBE_API_KEY`/`GENIUS_ACCESS_TOKEN`을 `.env`에 채우고, tsx로 두 어댑터를 실제 라이브 호출
+- **YouTube**: "Wade in the Water"로 정상 매칭 확인 (videoId·썸네일 정상 반환)
+- **Genius**: 처음엔 "Amazing Grace"를 검색했더니 **완전히 다른 콘텐츠**(Aaron Cohen이라는 저자가 쓴 책 발췌문, Genius가 "song" 타입으로 등록해둔 비-음악 텍스트)를 1순위로 가져오는 걸 발견 — `pickBestHit`의 제목 유사도 체크만으론 못 걸렀음
+- 원인 조사: Genius 검색 결과 raw JSON을 직접 찍어보니, 실제 노래 가사 페이지는 URL이 `-lyrics`로 끝나고 Genius 자체 콘텐츠(책 발췌·기사·아티스트 아카이브)는 `-annotated`로 끝남 — `lyrics_state` 필드는 둘 다 `"complete"`라 구분에 못 씀
+- `genius.ts`의 `pickBestHit`에 `hit.result.url.endsWith("-lyrics")` 조건을 추가해서 재검증 → "Amazing Grace"는 이제 정직하게 `NOT_FOUND`(틀린 콘텐츠를 가져오는 것보다 훨씬 나음), "Go Down Moses"는 여전히 정확하게 매칭됨(진짜 가사 텍스트 확인)
+
+**왜 이렇게**:
+- 부정확한 매칭을 그냥 두면 파이프라인이 "성공"으로 기록하고 완전히 엉뚱한 텍스트를 `lyrics.original_text`에 저장하게 됨 — 이게 조용히 넘어가면 검수 단계(P1-S5)에서 사람이 매번 원문 대조까지 다시 해야 해서 오히려 신뢰를 깎아먹음. `NOT_FOUND`로 명확히 실패시키는 게 부분 성공 처리(P1-S2-T6)와도 자연스럽게 맞물림 — 실패한 provider는 그 자리에서 빈 값으로 남기고 나머지(YouTube/Apple Music 등)는 저장하면 됨
+- **"Traditional"을 아티스트로 검색하면 실패율이 높다**는 것도 이번에 확인됨(Wade in the Water/Amazing Grace/Swing Low 전부 이 필터 적용 후 `NOT_FOUND`) — Genius엔 특정 유명 아티스트의 커버 버전만 개별 곡으로 등록되는 경우가 많아서 그런 것으로 보임. 이건 코드 문제가 아니라 콘텐츠 소스의 한계라, 운영자가 곡 등록할 때 "Traditional" 대신 실제 유명 레코딩 아티스트(예: Mahalia Jackson, Sister Rosetta Tharpe 등 특정 커버)를 넣는 편이 매칭 성공률이 높을 것 — 검수 UI(P1-S5) 만들 때 이 점 반영 예정
+
+**변경 파일**: `packages/integrations/src/adapters/genius.ts`, `.env`(비커밋, YOUTUBE_API_KEY·GENIUS_ACCESS_TOKEN 채움)
+
+**검증**:
+- `pnpm --filter @ongod/integrations typecheck/test` 재통과 (기존 mock 테스트 fixture URL이 이미 `-lyrics`로 끝나서 회귀 없음)
+- tsx로 5개 쿼리 라이브 재실행: YouTube 1/1 성공, Genius는 "Go Down Moses"만 정확히 성공하고 나머지 4개는 (의도대로) `NOT_FOUND` — 오매칭 0건
+
+**막힌 점 / 다음 할 일**:
+- Genius 매칭 성공률이 낮은 편(5개 중 1개) — P1-S4(오케스트레이션)에서 실패를 어떻게 사람에게 보여줄지(검수 큐에 "가사 수동 입력 필요" 같은 상태로 노출) 설계할 때 감안해야 함
+- Apple Music/Spotify는 여전히 실제 키 없음
+
 <!-- 아래에 새 로그 항목을 계속 추가한다 -->
