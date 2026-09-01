@@ -1,15 +1,20 @@
-import { StyleSheet, Text, View } from "react-native";
+import { spacing } from "@ongod/ui-tokens";
+import { StyleSheet, View } from "react-native";
+
+import { theme } from "../../lib/theme";
+import { Text } from "../ui/Text";
 
 interface EmptyViewProps {
   message?: string;
 }
 
-// P2-S1-T5 / P2-S3-T5: "오늘의 곡 없음"처럼 에러는 아니지만 보여줄 데이터가 없는 상태.
-// 스타일은 P2-S2에서 교체한다.
+/** P2-S3-T5: "오늘의 곡 없음"처럼 에러는 아니지만 보여줄 데이터가 없는 상태. */
 export function EmptyView({ message = "오늘의 곡이 아직 준비되지 않았어요." }: EmptyViewProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.message}>{message}</Text>
+      <Text variant="body" color={theme.textSecondary} style={styles.message}>
+        {message}
+      </Text>
     </View>
   );
 }
@@ -19,7 +24,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
+    padding: spacing.xxl,
+    backgroundColor: theme.background,
   },
   message: {
     textAlign: "center",

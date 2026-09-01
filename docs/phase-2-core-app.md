@@ -8,7 +8,7 @@
 ## 진행 체크리스트
 
 - [x] S1. 앱 기반 (네비게이션·데이터) — [로그](./logs/frontend-log.md#2026-09-01--p2-s1-t1t6--expo-router-골격--supabase-연결--데이터-레이어)
-- [ ] S2. 디자인 시스템
+- [x] S2. 디자인 시스템 — [로그](./logs/frontend-log.md#2026-09-01--p2-s2-t1t4--디자인-토큰packagesui-tokens--기초-컴포넌트--폰트아이콘)
 - [ ] S3. Daily Card 화면
 - [ ] S4. 가사 뷰어
 - [ ] S5. 스트리밍 딥링크
@@ -34,11 +34,12 @@
 
 ### Task
 
-- 🤖 **P2-S2-T1** — 디자인 토큰 (다크모드 기본)
-- 🤖 **P2-S2-T2** — 기초 컴포넌트 (Text/Button/Tab/Card/Skeleton)
-- 🤖 **P2-S2-T3** — 스트리밍 브랜드 컬러 (Apple 흑백/Spotify 녹색/YouTube 적색)
-- 🤝 **P2-S2-T4** — 폰트·아이콘 셋업
+- [x] 🤖 **P2-S2-T1** — 디자인 토큰 (다크모드 기본)
+- [x] 🤖 **P2-S2-T2** — 기초 컴포넌트 (Text/Button/Tab/Card/Skeleton)
+- [x] 🤖 **P2-S2-T3** — 스트리밍 브랜드 컬러 (Apple 흑백/Spotify 녹색/YouTube 적색)
+- [x] 🤝 **P2-S2-T4** — 폰트·아이콘 셋업
   *나: 코드 통합 / 당신: 유료·라이선스 폰트를 쓸 경우 폰트 파일·라이선스 제공 (무료 폰트면 내가 처리)*
+  → 무료 Google Fonts(Inter + Fraunces)로 처리함. 유료 폰트로 바꾸고 싶으면 말해달라 — `packages/ui-tokens/src/typography.ts` + `apps/mobile/lib/fonts.ts` 두 곳만 바꾸면 됨.
 
 ---
 

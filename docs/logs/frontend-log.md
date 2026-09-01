@@ -52,3 +52,25 @@
 - `react-native`가 SDK 52 기대 버전(`0.76.9`)과 안 맞아서(`0.76.5`) Expo Go의 dev 에러 오버레이 자체가 렌더링 실패하는 별개 버그를 유발함 — `expo install --fix`로 버전 정렬해서 해결.
 - Expo Go에 `exp://<LAN IP>:8081`로 자동 연결이 안 돼서(이 샌드박스 환경의 LAN IP가 시뮬레이터 네트워크 네임스페이스에서 라우팅 안 되는 듯) `exp://127.0.0.1:8081`로 수동 재연결함 — 로컬 개발 환경 특성일 수 있어 사람이 실제 macOS에서 돌릴 때는 재현 안 될 수도 있음.
 - 다음 Task는 P2-S2(디자인 시스템, `packages/ui-tokens` 신규 생성).
+
+## 2026-09-01 · P2-S2-T1~T4 — 디자인 토큰(`packages/ui-tokens`) + 기초 컴포넌트 + 폰트/아이콘
+
+**Task**: [P2-S2](../phase-2-core-app.md#s2-디자인-시스템)
+**한 일**:
+- P2-S2-T1: `packages/ui-tokens` 신규 워크스페이스 패키지 생성(`packages/core`와 동일 구조 — tsconfig/eslint는 `@ongod/config` 확장, vitest로 테스트). SRS 4.1 "다크모드 기본 지원"에 맞춰 `colors.dark` 팔레트(배경/표면/텍스트/accent 등 semantic 키)를 채웠다. 라이트 테마는 MVP 범위 밖이라 안 만들었지만, 값이 아니라 역할 이름으로 키를 지어놔서 나중에 `colors.light`를 같은 구조로 추가하면 됨. 타이포그래피 스케일(`fontSize`/`lineHeight`/`fontFamily`), 스페이싱(4px 기준), radius 스케일도 같이 정의.
+- P2-S2-T2: `apps/mobile/components/ui/{Text,Button,Card,Tab,Skeleton}.tsx` — 토큰을 소비하는 기초 컴포넌트. `apps/mobile/lib/theme.ts`에서 `colors.dark` 하나만 참조하게 해서, 나중에 라이트 테마 붙일 때 이 파일 하나만 동적으로 바꾸면 되도록 함(컴포넌트들은 전부 `theme`만 import).
+- P2-S2-T3: `packages/ui-tokens/src/streaming.ts` — Apple Music(흰 배경/검정 글자, 공식 흑백 배지 스타일), Spotify(#1DB954), YouTube(#FF0000) 브랜드 컬러. `Button`이 `backgroundColor`/`foregroundColor` override를 받게 만들어서 P2-S5에서 그대로 꽂아 쓸 수 있게 해둠.
+- P2-S2-T4: 무료 Google Fonts로 처리(유료 폰트 필요하면 알려달라고 phase 문서에 남김) — 본문/UI는 Inter, 곡명 등 디스플레이는 Fraunces(`@expo-google-fonts/inter`, `@expo-google-fonts/fraunces`, `expo-font`). `apps/mobile/lib/fonts.ts`에서 로딩, `app/_layout.tsx`에서 `expo-splash-screen`으로 폰트 로딩 끝날 때까지 스플래시 유지. 아이콘은 Expo 기본 번들인 `@expo/vector-icons`를 명시적 의존성으로 추가만 해둠(아직 실제로 쓰는 화면이 없어서 — 첫 아이콘 필요해지는 Task에서 세트 고를 것).
+**왜 이렇게**:
+- 토큰(`packages/ui-tokens`, 프레임워크 무관 plain 값)과 컴포넌트(`apps/mobile/components/ui`, RN 전용)를 분리함 — 아키텍처 원칙(`앱은 packages를 쓰고 역은 금지`)과, Phase 3 네이티브 위젯(WidgetKit/Glance)이 RN 컴포넌트는 못 쓰지만 색상 값(hex)은 그대로 재사용할 수 있어야 하기 때문.
+- 커스텀 폰트는 RN에서 굵기별로 별도 family가 되므로(`fontWeight` CSS 프로퍼티가 커스텀 폰트에 안 먹음), 토큰에 `Inter_600SemiBold`처럼 실제 로드할 family 이름을 그대로 박아뒀다 — `apps/mobile/lib/fonts.ts`의 `useFonts` 인자와 정확히 일치해야 함.
+- 다크 테마 하나만 있는 지금 시점에 `ThemeProvider`/컨텍스트를 미리 만들지 않음(YAGNI) — `lib/theme.ts`가 단일 진입점이라 필요해지면 그 파일만 동적으로 바꾸면 됨.
+**변경 파일**: `packages/ui-tokens/**`(신규), `apps/mobile/components/ui/**`(신규), `apps/mobile/lib/{theme,fonts}.ts`(신규), `apps/mobile/app/_layout.tsx`, `apps/mobile/app/index.tsx`, `apps/mobile/components/state/{LoadingView,ErrorView,EmptyView}.tsx`(토큰/컴포넌트로 교체), `apps/mobile/app.json`(`expo-font` 플러그인 자동 추가), `apps/mobile/package.json`
+**검증**:
+- `pnpm turbo run typecheck lint test` — 저장소 전체(신규 `@ongod/ui-tokens` 포함) 19개 태스크 통과.
+- `packages/ui-tokens/src/colors.test.ts` — 모든 색상 값이 6자리 hex인지, 스트리밍 브랜드 3개가 다 정의됐는지 검증.
+- iOS 시뮬레이터에서 재검증: 다크 배경(`theme.background`)이 실제로 적용됐고, `EmptyView`가 새 `Text` 컴포넌트로 정상 렌더링됨을 확인. 폰트 로딩은 에러 로그 없이 통과(=`useAppFonts`가 성공적으로 resolve돼 스플래시가 정상적으로 내려감).
+- 실제 디스플레이 폰트(Fraunces)가 곡 제목에 적용된 모습은 오늘 발행된 픽이 없어(S1 로그 참고) 아직 못 봤음 — P2-S3에서 확인 필요.
+**막힌 점 / 다음 할 일**:
+- Metro dev 서버가 새로 설치한 패키지를 Fast Refresh로 못 잡아서(예전 세션 캐시) `expo start --clear`로 재시작해야 했음 — 새 워크스페이스 패키지/의존성 추가할 때마다 반복될 수 있는 패턴이니 참고.
+- 다음 Task는 P2-S3(Daily Card 화면) — 여기서 처음으로 이번 토큰/컴포넌트가 실제 화면에 제대로 쓰이는지 검증됨.
