@@ -7,7 +7,7 @@
 
 ## 진행 체크리스트
 
-- [ ] S1. 앱 기반 (네비게이션·데이터)
+- [x] S1. 앱 기반 (네비게이션·데이터) — [로그](./logs/frontend-log.md#2026-09-01--p2-s1-t1t6--expo-router-골격--supabase-연결--데이터-레이어)
 - [ ] S2. 디자인 시스템
 - [ ] S3. Daily Card 화면
 - [ ] S4. 가사 뷰어
@@ -21,12 +21,12 @@
 
 ### Task
 
-- 🤖 **P2-S1-T1** — Expo Router 네비게이션 골격
-- 🤖 **P2-S1-T2** — Supabase 클라이언트 연결 (anon, `packages/db` 재사용)
-- 🤖 **P2-S1-T3** — TanStack Query 데이터 레이어 (쿼리 키·캐시 정책)
-- 🤖 **P2-S1-T4** — 도메인 훅 (`useTodayPick`, `useSongLyrics`)
-- 🤖 **P2-S1-T5** — 로딩/에러/빈상태 공통 컴포넌트
-- 🤖 **P2-S1-T6** — 오프라인/캐시 전략 (마지막 곡 캐싱)
+- [x] 🤖 **P2-S1-T1** — Expo Router 네비게이션 골격
+- [x] 🤖 **P2-S1-T2** — Supabase 클라이언트 연결 (anon, `packages/db` 재사용)
+- [x] 🤖 **P2-S1-T3** — TanStack Query 데이터 레이어 (쿼리 키·캐시 정책)
+- [x] 🤖 **P2-S1-T4** — 도메인 훅 (`useTodayPick`, `useSongLyrics`)
+- [x] 🤖 **P2-S1-T5** — 로딩/에러/빈상태 공통 컴포넌트
+- [x] 🤖 **P2-S1-T6** — 오프라인/캐시 전략 (마지막 곡 캐싱, `@tanstack/react-query-persist-client`)
 
 ---
 

@@ -3,6 +3,7 @@
     "name": "OnGod",
     "slug": "ongod",
     "version": "0.0.1",
+    "scheme": "ongod",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -12,6 +13,9 @@
     },
     "android": {
       "package": "com.ongod.app"
-    }
+    },
+    "plugins": [
+      "expo-router"
+    ]
   }
 }
