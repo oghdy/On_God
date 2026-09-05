@@ -168,3 +168,23 @@
 - **중요 발견(내 작업과 무관하지만 기록 필요)**: `pnpm turbo run typecheck` 전체 실행 중 `@ongod/admin`이 실패하는 걸 발견함 — pnpm hoisted 레이아웃에서 `next`가 루트로 완전히 호이스팅되면서 admin의 React 19 타입과 루트의(mobile용) React 18 타입이 한 컴파일에 섞이는 문제로 보임(ADR-0005 이후 잠재해있다가 이번에 패키지 설치로 캐시 무효화되며 처음 드러난 듯). 어설픈 수정 시도는 되돌리고 정확한 진단만 [handoff.md](./handoff.md)에 남김 — admin/Next.js는 backend 트랙 소관이라 내가 깊이 고치지 않음. **`apps/mobile`/`packages/*`는 이 문제와 무관하게 전부 정상**(위 검증 항목 참고).
 - 시뮬레이터의 `supabase` CLI가 OnGod와 무관한 다른 계정/프로젝트(`mission-talk`, `oghdy's Project`)에 로그인돼 있는 걸 발견함 — OnGod 마이그레이션 적용에 이 세션을 쓰면 안 됨(다른 프로젝트 건드릴 위험). PAT 받으면 Management API로 우회하면 되니 문제는 없음.
 - Google 프로바이더가 켜지면 다음 세션에서 바로 실제 로그인 종단 테스트 가능한 상태까지 코드는 다 준비됨.
+
+## 2026-09-01 · P2-S6 후속 — Supabase PAT로 프로바이더 활성화 + 마이그레이션 적용
+
+**Task**: [P2-S6](../phase-2-core-app.md#s6-인증-srs-profiles-applegoogle)
+**한 일**: 사람에게 받은 임시 Supabase Personal Access Token으로 Management API를 직접 호출해서:
+1. `PATCH /v1/projects/{ref}/config/auth`로 Google 프로바이더 활성화(`external_google_client_id`/`external_google_secret`을 `.env`의 Web 클라이언트 값으로 설정).
+2. 같은 엔드포인트로 Apple 프로바이더 활성화(`external_apple_client_id=com.ongod.app`, 네이티브 id_token 플로우라 secret은 불필요).
+3. `POST /v1/projects/{ref}/database/query`로 `20260901120000_handle_new_user_profile.sql`을 dev DB에 실제 실행하고, `supabase_migrations.schema_migrations`에 버전(`20260901120000`)·이름(`handle_new_user_profile`)을 수동으로 등록해 기존 마이그레이션 이력과 일관되게 맞춤.
+4. 토큰은 각 명령의 셸 변수로만 쓰고 실행 직후 `unset`, 어떤 파일에도 저장하지 않음(정책대로).
+**왜 이렇게**: PATCH 전에 먼저 `GET .../config/auth`로 실제 필드 이름(`external_google_enabled` 등)을 확인하고 진행함 — 이름을 추측해서 잘못된 필드로 조용히 실패하는 걸 피하려는 목적. 마이그레이션은 파일만 실행하지 않고 이력 테이블에도 직접 기록해서, 나중에 backend가 `supabase db push`를 쓸 때 "이미 적용된 마이그레이션"으로 정상 인식되게 함(중복 적용 에러 방지).
+**변경 파일**: 없음(전부 Supabase 프로젝트 설정/DB 상태 변경이라 저장소 파일 변경 없음) — 문서만 갱신(`phase-2-core-app.md`, `human-actions.md`, `handoff.md`).
+**검증**:
+- `GET /v1/projects/{ref}/config/auth` 재조회로 `external_google_enabled: true`, `external_apple_enabled: true`, `external_apple_client_id: "com.ongod.app"` 확인.
+- `select tgname, tgrelid::regclass from pg_trigger where tgname = 'on_auth_user_created'`로 트리거가 `auth.users`에 실제로 걸려있는 것 확인.
+- iOS 시뮬레이터에서 Google 로그인 버튼 재테스트: 이전엔 Supabase가 `"provider not enabled"`로 막았는데, 이번엔 **Google의 실제 로그인 화면(`accounts.google.com`)까지 도달** — Supabase 단계는 완전히 통과함을 확인. 다만 Google이 `400 오류: redirect_uri_mismatch`로 막아서 실제 로그인 완료까지는 못 감.
+**막힌 점 / 다음 할 일**:
+- `redirect_uri_mismatch`는 Google Cloud Console의 웹 OAuth 클라이언트에 등록된 "승인된 리디렉션 URI"가 Supabase가 실제로 보내는 값(`https://bauchkybtccrclasheqf.supabase.co/auth/v1/callback`)과 정확히 일치하지 않을 때 나는 에러 — Google Cloud 쪽 설정이라 내가 직접 못 고침(대시보드 UI 조작), 사람에게 재확인 요청함([human-actions.md](../human-actions.md) "P2-S6 후속2"). 고쳐주면 바로 재검증 가능.
+- `external_google_additional_client_ids`(iOS 클라이언트 ID를 추가 허용 audience로 등록하는 필드)는 API로 두 번 시도했는데 계속 `null`로 남음 — 원인 불명(API 자체 한계일 수도, 다른 포맷을 요구할 수도 있음). 지금 구현(브라우저 기반 OAuth)에는 필요 없는 필드라 당장 안 막히지만, 나중에 네이티브 Google Sign-In SDK로 바꿀 때는 이 필드를 대시보드에서 직접 넣어야 할 수도 있음 — 기록만 해두고 넘어감.
+- Apple 로그인은 여전히 EAS 빌드 전이라 라이브 종단 검증 불가(이전 로그 참고).
+- 다음 세션은 리디렉션 URI 확인 여부에 따라: 고쳐졌으면 Google 로그인 실제 완료 + `profiles` 자동 생성 확인까지, 아직이면 P2-S7로 넘어가는 것도 고려.

@@ -58,9 +58,9 @@
 ## 2026-09-01 · frontend → backend
 
 **변경**: 새 마이그레이션 `supabase/migrations/20260901120000_handle_new_user_profile.sql` 추가 — `auth.users`에 새 행이 생기면(최초 로그인) `public.profiles`를 자동으로 만들어주는 트리거(`on_auth_user_created` → `handle_new_user()`). P2-S6-T3(로그인 시 profiles 자동 생성) 대응.
-**영향**: 아직 **dev/prod DB 어디에도 적용 안 됨** — 로컬에 SQL 파일만 만들어뒀다. 적용하려면 Supabase Management API(PAT 필요, 사람에게 요청해둠 — [human-actions.md](../human-actions.md) "P2-S6 후속" 참고) 또는 `supabase db push`(단, 이 머신의 `supabase` CLI 로그인 세션이 OnGod 프로젝트가 아닌 다른 계정/조직에 연결돼 있어서 — 아래 항목 참고 — 그대로 쓰면 안 됨, 재로그인 필요)로 적용해야 한다. backend가 먼저 이 파일을 적용하게 되면 프론트 쪽에 알려주면 좋음(중복 적용 방지).
+**영향**: ~~아직 dev/prod DB 어디에도 적용 안 됨~~ → **dev DB엔 적용 완료**(사람이 준 임시 PAT로 Management API를 통해 SQL 실행 + `supabase_migrations.schema_migrations`에 버전 등록까지 함, `pg_trigger`로 트리거 존재 확인함). **prod DB엔 아직 미적용** — backend가 prod 배포 때 이 파일도 같이 적용해야 함(로컬 `supabase db push`를 쓸 거라면, 이 머신의 `supabase` CLI 로그인 세션이 OnGod 프로젝트가 아닌 다른 계정/조직에 연결돼 있으니 재로그인 확인 먼저 할 것).
 **관련**: [frontend-log P2-S6](./frontend-log.md#2026-09-01--p2-s6--인증-apple구글-로그인--게스트-모드)
-**상태**: [ ] 미해결
+**상태**: [x] 처리완료(dev만) — 프론트 세션, 2026-09-01. prod 적용은 미해결로 남겨둠.
 
 ## 2026-09-01 · frontend → backend
 

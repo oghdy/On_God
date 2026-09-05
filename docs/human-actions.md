@@ -50,8 +50,9 @@
 
 - [ ] **P2-S2-T4** 🤝 유료·라이선스 폰트 사용 시 폰트 파일 제공 (무료 폰트로 처리해서 해당 없음)
 - [ ] **P2-S6-T0a** 🧑 Sign in with Apple 설정 → Supabase 입력값 전달 (Apple Developer에서 App ID `com.ongod.app`에 Sign in with Apple capability 켜는 절차 안내함, 확인 대기 중)
-- [x] **P2-S6-T0b** 🧑 Google OAuth Client 생성 → Supabase 입력값 전달 (완료 — Web/iOS 클라이언트 ID·secret 전달받아 `.env`에 저장. Supabase Auth 쪽 활성화는 PAT 받아서 내가 처리 예정)
-- [ ] **P2-S6 후속** 🧑 Supabase Personal Access Token 임시 제공 — Auth에서 Google/Apple 프로바이더 켜고(Client ID·secret 입력) `profiles` 자동생성 마이그레이션을 dev DB에 적용하는 데 필요. 파일에 저장 안 하고 명령 실행에만 쓰고 버림([secrets-policy.md](./secrets-policy.md) 참고)
+- [x] **P2-S6-T0b** 🧑 Google OAuth Client 생성 → Supabase 입력값 전달 (완료 — Web/iOS 클라이언트 ID·secret 전달받아 `.env`에 저장, Supabase Auth Google 프로바이더에도 반영 완료)
+- [x] **P2-S6 후속** 🧑 Supabase Personal Access Token 임시 제공 (완료 — 받은 즉시 Google/Apple 프로바이더 활성화 + `profiles` 자동생성 마이그레이션 적용에 쓰고 버림. 어떤 파일에도 저장 안 함)
+- [ ] **P2-S6 후속2** 🧑 Google Cloud Console 리디렉션 URI 재확인 — 실기기로 로그인 흐름을 다시 테스트해보니 Supabase까지는 정상 도달하는데 Google이 `400 오류: redirect_uri_mismatch`로 막음. Google Cloud Console → 사용자 인증 정보 → 웹 클라이언트(`OnGod Web (Supabase)`) 열어서 **승인된 리디렉션 URI**에 `https://bauchkybtccrclasheqf.supabase.co/auth/v1/callback`가 정확히(오타·trailing slash 없이) 들어가 있는지 확인 후 저장 부탁드립니다. 확인해주시면 제가 바로 다시 테스트하겠습니다.
 - [ ] **P2-S7-T3** 🤝 Sentry 계정·프로젝트 생성, DSN 전달
 - [ ] **P2-S7-T4** 🤝 분석 도구(선택) 계정·키 제공
 
