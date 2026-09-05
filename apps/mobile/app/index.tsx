@@ -1,48 +1,49 @@
-import { spacing } from "@ongod/ui-tokens";
-import { StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { toKstDateString } from "@ongod/core";
+import { FlatList, View, useWindowDimensions } from "react-native";
 
+import { DailyCard } from "../components/daily-card/DailyCard";
 import { EmptyView } from "../components/state/EmptyView";
 import { ErrorView } from "../components/state/ErrorView";
 import { LoadingView } from "../components/state/LoadingView";
-import { Text } from "../components/ui/Text";
-import { useTodayPick } from "../hooks/useTodayPick";
-import { theme } from "../lib/theme";
+import { useRecentPicks } from "../hooks/useRecentPicks";
+import type { PickWithSong } from "../lib/supabase/mapPick";
 
-// P2-S1: 실제 Daily Card UI는 P2-S3에서 만든다. 지금은 오늘의 곡이 화면까지 나오는지
-// (Supabase 연결 → TanStack Query → 도메인 훅 → 디자인 토큰) 검증하는 최소 화면.
+interface Page {
+  key: string;
+  pick: PickWithSong | null;
+}
+
+// P2-S3: 메인 피드. `useRecentPicks`로 최신순 픽 목록을 받아 가로 스와이프 페이저로 그린다
+// (P2-S3-T4, MVP 범위: 최근 곡까지 — 날짜 아카이브 달력 뷰는 P1). index 0이 오늘 픽이면
+// 그대로 첫 페이지, 아니면(P2-S3-T5) 안내 카드를 맨 앞에 끼워 넣어 오늘 픽이 없어도
+// 스와이프로 최근 곡은 계속 볼 수 있게 한다.
 export default function TodayScreen() {
-  const insets = useSafeAreaInsets();
-  const { data, isPending, isError, error, refetch } = useTodayPick();
+  const { width } = useWindowDimensions();
+  const { data, isPending, isError, error, refetch } = useRecentPicks();
 
   if (isPending) return <LoadingView />;
   if (isError) {
     return <ErrorView message={error instanceof Error ? error.message : undefined} onRetry={() => refetch()} />;
   }
-  if (!data) return <EmptyView />;
+
+  const picks = data ?? [];
+  if (picks.length === 0) return <EmptyView />;
+
+  const today = toKstDateString();
+  const hasTodayPick = picks[0]?.dailyPick.pickDate === today;
+
+  const pages: Page[] = hasTodayPick
+    ? picks.map((pick) => ({ key: pick.dailyPick.id, pick }))
+    : [{ key: "no-today-pick", pick: null }, ...picks.map((pick) => ({ key: pick.dailyPick.id, pick }))];
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <Text variant="display" style={styles.title}>
-        {data.song.title}
-      </Text>
-      <Text variant="body" color={theme.textSecondary}>
-        {data.song.artist}
-      </Text>
-    </View>
+    <FlatList
+      data={pages}
+      horizontal
+      pagingEnabled
+      showsHorizontalScrollIndicator={false}
+      keyExtractor={(page) => page.key}
+      renderItem={({ item }) => <View style={{ width }}>{item.pick ? <DailyCard pick={item.pick} /> : <EmptyView />}</View>}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    backgroundColor: theme.background,
-    paddingHorizontal: spacing.xxl,
-  },
-  title: {
-    textAlign: "center",
-  },
-});

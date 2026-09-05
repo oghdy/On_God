@@ -9,7 +9,7 @@
 
 - [x] S1. 앱 기반 (네비게이션·데이터) — [로그](./logs/frontend-log.md#2026-09-01--p2-s1-t1t6--expo-router-골격--supabase-연결--데이터-레이어)
 - [x] S2. 디자인 시스템 — [로그](./logs/frontend-log.md#2026-09-01--p2-s2-t1t4--디자인-토큰packagesui-tokens--기초-컴포넌트--폰트아이콘)
-- [ ] S3. Daily Card 화면
+- [x] S3. Daily Card 화면 — [로그](./logs/frontend-log.md#2026-09-01--p2-s3-t1t5--daily-card-화면)
 - [ ] S4. 가사 뷰어
 - [ ] S5. 스트리밍 딥링크
 - [ ] S6. 인증
@@ -47,11 +47,11 @@
 
 ### Task
 
-- 🤖 **P2-S3-T1** — 풀스크린 앨범커버 카드 (곡명·아티스트·발매연도)
-- 🤖 **P2-S3-T2** — 곡 소개 텍스트 (`song_info.description_ko`)
-- 🤖 **P2-S3-T3** — 앨범커버 로딩 (WebP·placeholder·블러업)
-- 🤖 **P2-S3-T4** — 카드 전환 스와이프 (MVP: 최근 곡까지)
-- 🤖 **P2-S3-T5** — "오늘의 곡 없음" 예외 처리
+- [x] 🤖 **P2-S3-T1** — 풀스크린 앨범커버 카드 (곡명·아티스트·발매연도)
+- [x] 🤖 **P2-S3-T2** — 곡 소개 텍스트 (`song_info.description_ko`)
+- [x] 🤖 **P2-S3-T3** — 앨범커버 로딩 (WebP·placeholder·블러업) — 코드는 완료, 실제 앨범커버 있는 곡으로 블러업 전환은 아직 눈으로 못 봄(Apple Music 키 대기 중, `human-actions.md` 참고)
+- [x] 🤖 **P2-S3-T4** — 카드 전환 스와이프 (MVP: 최근 곡까지)
+- [x] 🤖 **P2-S3-T5** — "오늘의 곡 없음" 예외 처리
 
 ---
 

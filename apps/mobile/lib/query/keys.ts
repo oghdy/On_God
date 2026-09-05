@@ -2,6 +2,7 @@
 export const queryKeys = {
   dailyPick: {
     today: () => ["dailyPick", "today"] as const,
+    recent: (limit: number) => ["dailyPick", "recent", limit] as const,
   },
   lyrics: {
     bySong: (songId: string) => ["lyrics", "bySong", songId] as const,

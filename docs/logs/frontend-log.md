@@ -74,3 +74,25 @@
 **막힌 점 / 다음 할 일**:
 - Metro dev 서버가 새로 설치한 패키지를 Fast Refresh로 못 잡아서(예전 세션 캐시) `expo start --clear`로 재시작해야 했음 — 새 워크스페이스 패키지/의존성 추가할 때마다 반복될 수 있는 패턴이니 참고.
 - 다음 Task는 P2-S3(Daily Card 화면) — 여기서 처음으로 이번 토큰/컴포넌트가 실제 화면에 제대로 쓰이는지 검증됨.
+
+## 2026-09-01 · P2-S3-T1~T5 — Daily Card 화면
+
+**Task**: [P2-S3](../phase-2-core-app.md#s3-daily-card-화면-srs-31-p0)
+**한 일**:
+- P2-S3-T1/T2: `apps/mobile/components/daily-card/DailyCard.tsx` — 풀스크린 앨범커버 + 곡명(Fraunces 디스플레이 폰트)·아티스트·발매연도(있을 때만) + `song_info.description_ko` 소개 텍스트. `expo-linear-gradient`로 하단에 그라디언트를 깔아 텍스트 가독성 확보(SRS 4.1 "Spotify Now Playing 참고 몰입형 레이아웃").
+- P2-S3-T3: `expo-image`로 앨범 커버 로딩 — `placeholder`에 `album_cover_thumbnail_url`(위젯용 축소판, ADR-0003)을 지정해 블러업 효과, `contentFit="cover"` + `transition={300}`. 앨범커버 자체가 없는 곡(Apple Music 키 미발급— handoff 참고)은 `Ionicons`(`@expo/vector-icons`, 이번에 처음 실사용 — 아이콘 세트로 Ionicons 채택) 음표 아이콘 placeholder로 대체.
+- P2-S3-T4: `hooks/useRecentPicks.ts` 신규 — 오늘 이하 날짜의 발행된 픽을 최신순으로 최대 14개 조회(`daily_picks`+`songs`+`song_info` 중첩 조인). `app/index.tsx`를 가로 `FlatList`(`pagingEnabled`) 페이저로 재작성해서 스와이프로 최근 곡까지 넘겨볼 수 있게 함(MVP 범위 — 날짜 아카이브 달력 뷰는 P1).
+- P2-S3-T5: 최신 픽의 `pick_date`가 오늘(KST)이 아니면(=오늘 픽 없음) 페이저 맨 앞에 `EmptyView` 안내 카드를 끼워 넣는다 — 에러가 아니라 "아직 없음"이고, 스와이프하면 최근 곡은 계속 볼 수 있음.
+- `daily_picks`+`songs`+`song_info` 조인·매핑 로직을 `lib/supabase/mapPick.ts`로 추출해 `useTodayPick`(P2-S1-T4)과 `useRecentPicks`가 공유하게 함. `useTodayPick`도 이 참에 `song_info`까지 같이 가져오도록 쿼리를 넓힘.
+**왜 이렇게**:
+- Daily Card 화면은 스와이프 브라우징이 필요해서 `useTodayPick`(오늘 하나만) 대신 `useRecentPicks`(목록)를 씀. `useTodayPick`은 지우지 않고 남겨둠 — Phase 3 위젯처럼 "오늘 픽 하나만" 필요한 곳에서 목록 전체를 안 가져와도 되는 더 가벼운 선택지로 유효함.
+- 스와이프는 별도 라이브러리(`react-native-pager-view`, `reanimated` 등) 없이 RN 내장 `FlatList`의 `pagingEnabled`만 사용 — MVP 범위(최근 곡까지, 제스처 튜닝 불필요)에는 이걸로 충분해서 의존성을 안 늘림.
+- 블러업 placeholder는 새 이미지 생성 없이 이미 있는 `album_cover_thumbnail_url`(위젯용으로 이미 만들어 둔 축소판)을 재사용 — 별도 blurhash 계산이나 컬럼 추가가 필요 없었음.
+**변경 파일**: `apps/mobile/components/daily-card/DailyCard.tsx`(신규), `apps/mobile/hooks/useRecentPicks.ts`(신규), `apps/mobile/hooks/useTodayPick.ts`(song_info 포함하도록 확장), `apps/mobile/lib/supabase/mapPick.ts`(신규, 공유 매퍼), `apps/mobile/lib/query/keys.ts`(`dailyPick.recent` 키 추가), `apps/mobile/app/index.tsx`(페이저로 재작성), `apps/mobile/package.json`(`expo-image`, `expo-linear-gradient`, `@expo/vector-icons`)
+**검증**:
+- `pnpm turbo run typecheck lint test` — 저장소 전체 19개 태스크 통과.
+- iOS 시뮬레이터(iPhone 16 Pro Max, Expo Go)에서 실제 확인: 오늘(9/1 KST) 픽이 없어 첫 페이지는 `EmptyView`("오늘의 곡이 아직 준비되지 않았어요") 정상 표시 → 왼쪽으로 스와이프하면 dev DB의 실제 발행 픽("Go Down Moses" / Traditional, `pick_date=2026-08-29`)이 뜨는 것까지 확인. 앨범커버가 없어(Apple Music 키 미발급) 음표 아이콘 placeholder가 대신 나오고, `song_info.description_ko`의 실제 AI 생성 한국어 소개 텍스트가 그대로 렌더링됨. 마지막 페이지에서 한 번 더 스와이프해도 크래시 없이 그대로 멈춤(리스트 끝), 반대 방향 스와이프로 되돌아가는 것도 확인.
+- 실제 앨범 이미지가 있는 곡에서 블러업 placeholder→풀이미지 전환이 눈에 보이는 모습은 아직 검증 못함(dev DB에 앨범커버 있는 발행 픽이 아직 없음) — Apple Music 키 발급되고 앨범커버 있는 곡이 발행되면 재확인 필요.
+**막힌 점 / 다음 할 일**:
+- 시뮬레이터가 세션 중간에 재부팅되어(iPhone 16 Pro → iPhone 16 Pro Max로 바뀜) 실기기 Apple 계정 확인 팝업이 떴음 — 사용자 실제 Apple ID 관련이라 손대지 않고 "지금 안 함"으로만 넘겼음(앱 동작과 무관).
+- 다음 Task는 P2-S4(가사 뷰어) — `useSongLyrics`(P2-S1-T4에서 이미 만듦)를 처음 화면에 연결하게 됨.
