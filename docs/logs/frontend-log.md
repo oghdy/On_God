@@ -119,3 +119,25 @@
 **막힌 점 / 다음 할 일**:
 - 시뮬레이터 좌표계 문제로 한참 헤맴: 이 tool의 스크린샷은 실제로 표시되는 이미지(약 921×2000)와 시뮬레이터 네이티브 해상도(1320×2868, 3배)가 다르고, 탭 좌표는 point 단위(440×956, 네이티브의 1/3)를 써야 하는데 스크린샷에서 눈대중으로 좌표를 읽어 변환하다 보니 버튼 위치를 두 번이나 잘못 짚었음. 결국 `xcrun simctl io booted screenshot`으로 직접 네이티브 스크린샷을 뽑고 Python으로 버튼의 정확한 픽셀 bounding box를 찾아서 좌표를 계산하니 맞았음. 그 와중에 "Link가 존재하지 않는다"는 별개의 Fast Refresh 스테일 버그도 만나서(import를 제거했는데 이전 모듈 그래프가 안 지워짐) `expo start --clear`로 완전 재시작이 필요했음 — 둘 다 이번 세션 한정 디버깅 이슈였고 코드 결함은 아님.
 - 다음 Task는 P2-S5(스트리밍 딥링크) — `packages/ui-tokens`의 `streaming` 브랜드 컬러(P2-S2-T3)를 처음 실제로 쓰게 됨.
+
+## 2026-09-01 · P2-S5-T1~T4 — 스트리밍 딥링크
+
+**Task**: [P2-S5](../phase-2-core-app.md#s5-스트리밍-딥링크-srs-31-p0)
+**한 일**:
+- P2-S5-T1: `lib/streaming/deepLink.ts` — 플랫폼별 앱 스킴을 만들고(Apple Music은 `appleMusicUrl`의 `https://`를 `music://`로 치환, Spotify는 `spotify:track:{spotifyId}`, YouTube는 `youtube://watch?v={youtubeId}`), `Linking.canOpenURL`로 앱 설치 여부를 확인해 되면 앱 스킴, 안 되면(또는 스킴 자체가 없으면) 웹 URL로 폴백하는 `openStreamingLink()` 구현. iOS에서 커스텀 스킴 감지가 되려면 `Info.plist`의 `LSApplicationQueriesSchemes`에 스킴을 등록해야 해서 `app.json`의 `ios.infoPlist`에 `["music", "spotify", "youtube"]` 추가.
+- P2-S5-T2: `components/streaming/{StreamingButton,StreamingButtons}.tsx` — `@ongod/ui-tokens`의 `streaming` 브랜드 컬러(P2-S2-T3에서 이미 정의됨)를 원형 버튼 배경/아이콘 색으로 그대로 씀. 아이콘은 `@expo/vector-icons`의 `MaterialCommunityIcons`(`apple`/`spotify`/`youtube` 브랜드 글리프 보유, P2-S3~S4에서 쓴 `Ionicons`엔 브랜드 로고가 없어서 이번에 새로 채택) 사용.
+- P2-S5-T3: `hasStreamingLink()`로 앱 스킴도 웹 URL도 둘 다 없는 플랫폼은 버튼 자체를 렌더링하지 않음(비활성 상태로 보여주는 대신 완전히 숨김).
+- P2-S5-T4: `phase-2-core-app.md`에 이미 기록된 MVP 결정("3개 동시 표시로 단순화")을 그대로 따름 — `StreamingButtons`가 링크 있는 플랫폼을 필터링해 한 줄로 다 보여줌, 기기 설치 앱 기반 자동 정렬 같은 추가 로직은 넣지 않음.
+- `DailyCard`에 `StreamingButtons`를 소개 텍스트와 "가사 보기" 버튼 사이에 삽입.
+**왜 이렇게**:
+- 앱 스킴 우선 로직을 `try/catch`로 감쌈 — `canOpenURL`/`openURL` 자체가 (플랫폼 차이 등으로) 던지더라도 무조건 웹 URL로 폴백되게 해서, 스트리밍 버튼이 "눌러도 아무 일도 안 일어나는" 상태가 되는 걸 막음.
+- Android의 패키지 가시성(`<queries>`, API 30+)은 이번에 건드리지 않음 — Expo 관리형 워크플로에서 raw AndroidManifest `<queries>`를 추가하려면 커스텀 config plugin이 필요한데, 이 환경엔 Android 에뮬레이터가 없어 검증이 불가능해서 확인 안 된 설정을 넣기보다 명시적으로 미룸(아래 "막힌 점" 참고). `canOpenURL`이 Android에서 false를 반환해도 웹 폴백은 정상 동작하므로 기능이 깨지진 않음.
+**변경 파일**: `apps/mobile/lib/streaming/deepLink.ts`(신규), `apps/mobile/components/streaming/{StreamingButton,StreamingButtons}.tsx`(신규), `apps/mobile/components/daily-card/DailyCard.tsx`, `apps/mobile/app.json`(`ios.infoPlist.LSApplicationQueriesSchemes`)
+**검증**:
+- `pnpm turbo run typecheck lint test` — 저장소 전체 19개 태스크 통과.
+- iOS 시뮬레이터에서 실제 dev DB 데이터로 확인: "Go Down Moses"는 YouTube 링크만 있고 Apple Music/Spotify는 없는 실제 케이스라 P2-S5-T3(링크 누락 플랫폼 숨김)를 별도 조작 없이 그대로 검증함 — 빨간 YouTube 버튼 하나만 렌더링됨. 버튼을 탭하니 Expo Go 안에서 Safari(인앱 브라우저)가 열리며 해당 YouTube 영상 페이지로 정상 이동 — Expo Go는 `music://`/`spotify:`/`youtube://` 같은 커스텀 스킴을 자체 `Info.plist`에 선언 안 해서(관리형 워크플로 특성상 우리 `app.json`의 `LSApplicationQueriesSchemes`가 Expo Go엔 반영 안 됨) `canOpenURL`이 항상 false → 웹 폴백 경로가 탄 것. 앱 스킴이 실제로 먼저 시도되는 것 자체는 검증 못했지만, 폴백 로직과 URL 조합은 정확함을 확인.
+**막힌 점 / 다음 할 일**:
+- 앱 스킴 우선(`music://`/`spotify:`/`youtube://`) 분기는 Expo Go 특성상 이 환경에서 끝까지 검증 불가 — EAS 개발 빌드(dev client)로 우리 `app.json`의 `LSApplicationQueriesSchemes`가 실제 반영된 앱에서 재검증 필요(EAS 빌드는 사람 계정 필요, `docs/human-actions.md` 참고).
+- Android `<queries>` 매니페스트 설정은 이번엔 건드리지 않음 — Android 빌드/에뮬레이터 검증 가능해지면 커스텀 config plugin으로 추가 검토.
+- 시뮬레이터 좌표 이슈(전 Task 로그 참고)가 이번에도 반복됨 — 스트리밍 버튼 탭 위치를 두 번 잘못 짚었다가 `xcrun simctl io booted screenshot` 네이티브 캡처 + 색상 매칭으로 정확한 좌표를 찾음(빨간 원형 버튼이라 색 매칭이 쉬웠음).
+- Phase 2 남은 Task는 P2-S6(인증)과 P2-S7(성능·안정화). P2-S6은 Apple/Google OAuth 키 발급(🧑, `human-actions.md` P2-S6-T0a/T0b)이 먼저 필요 — 키 오기 전까지 게스트 모드부터 진행 가능.

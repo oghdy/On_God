@@ -9,7 +9,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.ongod.app"
+      "bundleIdentifier": "com.ongod.app",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": ["music", "spotify", "youtube"]
+      }
     },
     "android": {
       "package": "com.ongod.app"

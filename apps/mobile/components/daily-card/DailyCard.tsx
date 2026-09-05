@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { theme } from "../../lib/theme";
 import type { PickWithSong } from "../../lib/supabase/mapPick";
+import { StreamingButtons } from "../streaming/StreamingButtons";
 import { Text } from "../ui/Text";
 
 interface DailyCardProps {
@@ -61,6 +62,9 @@ export function DailyCard({ pick }: DailyCardProps) {
             {songInfo.descriptionKo}
           </Text>
         ) : null}
+        <View style={styles.actions}>
+          <StreamingButtons song={song} />
+        </View>
         <Pressable style={styles.lyricsButton} hitSlop={16} onPress={() => router.push(`/lyrics/${song.id}`)}>
           <Ionicons name="reader-outline" size={18} color={theme.textPrimary} />
           <Text variant="bodyMedium">가사 보기</Text>
@@ -91,6 +95,9 @@ const styles = StyleSheet.create({
   },
   description: {
     marginTop: spacing.sm,
+  },
+  actions: {
+    marginTop: spacing.md,
   },
   lyricsButton: {
     flexDirection: "row",
