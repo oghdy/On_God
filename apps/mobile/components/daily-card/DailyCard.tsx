@@ -47,6 +47,13 @@ export function DailyCard({ pick }: DailyCardProps) {
         locations={[0, 0.55, 1]}
         style={StyleSheet.absoluteFillObject}
       />
+      <Pressable
+        onPress={() => router.push("/profile")}
+        hitSlop={12}
+        style={[styles.profileButton, { top: insets.top + spacing.lg }]}
+      >
+        <Ionicons name="person-circle-outline" size={28} color={theme.textPrimary} />
+      </Pressable>
       <View style={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xxl }]}>
         <View style={styles.meta}>
           <Text variant="display" numberOfLines={2}>
@@ -83,6 +90,11 @@ const styles = StyleSheet.create({
     backgroundColor: theme.surface,
     alignItems: "center",
     justifyContent: "center",
+  },
+  profileButton: {
+    position: "absolute",
+    right: spacing.lg,
+    zIndex: 1,
   },
   content: {
     flex: 1,

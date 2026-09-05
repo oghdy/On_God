@@ -84,15 +84,14 @@
 
 ### Task
 
-- 🧑 **P2-S6-T0a** — **Apple 로그인 설정**
-  *당신: Apple Developer에서 Sign in with Apple 활성화, Service ID·키 발급 → Supabase Auth에 입력값 전달*
-- 🧑 **P2-S6-T0b** — **Google 로그인 설정**
-  *당신: Google Cloud OAuth 동의화면·Client ID 생성 → Supabase Auth에 입력값 전달*
-- 🤖 **P2-S6-T1** — Apple 로그인 구현
-- 🤖 **P2-S6-T2** — Google 로그인 구현
-- 🤖 **P2-S6-T3** — 로그인 시 `profiles` 자동 생성·provider 기록
-- 🤖 **P2-S6-T4** — 게스트 모드 (비로그인 열람)
-- 🤖 **P2-S6-T5** — 세션 영속·자동 갱신·로그아웃
+- [ ] 🧑 **P2-S6-T0a** — **Apple 로그인 설정**
+  *당신: Apple Developer에서 Sign in with Apple 활성화 → 켰다고 알려주면 됨* — 아직 확인 안 됨(진행 중일 수 있음)
+- [x] 🧑 **P2-S6-T0b** — **Google 로그인 설정** — 완료(Web/iOS 클라이언트 ID·secret 전달받음, `.env`에 저장)
+- [ ] 🤖 **P2-S6-T1** — Apple 로그인 구현 — 코드 작성 완료(`expo-apple-authentication` 네이티브 플로우), **라이브 검증은 EAS 빌드 필요**(Expo Go에선 Expo Go 자체 앱 신분으로 인증되어 우리 앱 검증 불가 — [로그](./logs/frontend-log.md#2026-09-01--p2-s6--인증-apple구글-로그인--게스트-모드) 참고)
+- [ ] 🤖 **P2-S6-T2** — Google 로그인 구현 — 코드 작성 + 부분 검증 완료(Supabase까지 정상 도달, "provider not enabled" 확인 — Supabase Auth에서 Google 프로바이더 활성화만 남음, PAT 필요)
+- [ ] 🤖 **P2-S6-T3** — 로그인 시 `profiles` 자동 생성·provider 기록 — 마이그레이션 작성 완료(`supabase/migrations/20260901120000_handle_new_user_profile.sql`), **아직 dev DB에 미적용**(PAT 필요)
+- [x] 🤖 **P2-S6-T4** — 게스트 모드 (비로그인 열람) — 완료·검증됨(로그인 없이 전체 피드/가사 열람 그대로 동작, 로그인 화면엔 게스트 이용 가능 안내 문구)
+- [ ] 🤖 **P2-S6-T5** — 세션 영속·자동 갱신·로그아웃 — `AuthProvider`/`signOut` 구현 완료, 자동 갱신은 P2-S1에서 이미 설정된 것 재사용. **실제 로그인 상태에서의 영속 확인은 위 T2/T3 완료 후 재검증 필요**
 
 ---
 

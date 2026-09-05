@@ -141,3 +141,30 @@
 - Android `<queries>` 매니페스트 설정은 이번엔 건드리지 않음 — Android 빌드/에뮬레이터 검증 가능해지면 커스텀 config plugin으로 추가 검토.
 - 시뮬레이터 좌표 이슈(전 Task 로그 참고)가 이번에도 반복됨 — 스트리밍 버튼 탭 위치를 두 번 잘못 짚었다가 `xcrun simctl io booted screenshot` 네이티브 캡처 + 색상 매칭으로 정확한 좌표를 찾음(빨간 원형 버튼이라 색 매칭이 쉬웠음).
 - Phase 2 남은 Task는 P2-S6(인증)과 P2-S7(성능·안정화). P2-S6은 Apple/Google OAuth 키 발급(🧑, `human-actions.md` P2-S6-T0a/T0b)이 먼저 필요 — 키 오기 전까지 게스트 모드부터 진행 가능.
+
+## 2026-09-01 · P2-S6 — 인증(Apple/구글 로그인 + 게스트 모드)
+
+**Task**: [P2-S6](../phase-2-core-app.md#s6-인증-srs-profiles-applegoogle)
+**한 일**:
+- Google Cloud에서 발급받은 Web/iOS 클라이언트 ID·secret을 루트 `.env`(gitignore됨)에 저장, `.env.example`·`packages/config/src/env.ts` 스키마에 optional 필드로 반영.
+- `lib/auth/signIn.ts` — Google은 `supabase.auth.signInWithOAuth` + `expo-web-browser`(`openAuthSessionAsync`)로 시스템 브라우저 기반 OAuth, Apple은 `expo-apple-authentication`(네이티브 버튼) → `signInWithIdToken`. 왜 방식이 다른지는 파일 안 주석에 남김(Expo Go 검증 가능 여부 차이).
+- `lib/auth/AuthProvider.tsx` — `supabase.auth.onAuthStateChange` 구독 + `getSession()` 초기 복원을 컨텍스트로 노출하는 `useAuth()` 훅. `app/_layout.tsx`에 최상위로 장착.
+- `app/profile.tsx` — 로그인 화면(모달, `Stack.Screen options={{presentation:"modal"}}`). 게스트도 계속 쓸 수 있다는 안내 문구, Apple 네이티브 버튼(iOS만), Google 버튼, 로그인 상태면 이메일/이름 + 로그아웃. `DailyCard` 우상단에 사람 아이콘으로 진입점 추가(P2-S6-T4/T5).
+- `supabase/migrations/20260901120000_handle_new_user_profile.sql` — `auth.users` insert 시 `profiles` 자동 생성 트리거(P2-S6-T3). **아직 dev DB에 미적용** — [handoff.md](./handoff.md) 참고.
+- `app.json`에 `expo-apple-authentication` 플러그인 추가.
+**왜 이렇게**:
+- Google은 브라우저 기반 OAuth를 택함 — Apple/Google 둘 다 원래는 네이티브 SDK(`@react-native-google-signin`, `expo-apple-authentication`)가 정석이지만, 네이티브 모듈은 EAS 빌드 전(지금은 Expo Go만 있음) 검증이 아예 불가능함. Google Cloud OAuth 클라이언트를 이미 웹+iOS 두 개 받아둔 김에, Supabase가 공식 지원하는 브라우저 흐름으로 짜서 **지금 이 세션에서 바로 끝까지 검증 가능**하게 했음(아래 검증 항목 참고). Apple은 브라우저 흐름으로 대체하면 Services ID·private key(.p8)·도메인 검증 같은 훨씬 무거운 추가 설정이 필요해져서, 대신 네이티브 흐름 그대로 코드만 작성하고 라이브 검증은 EAS 빌드 이후로 미룸 — Apple 쪽 Supabase 설정도 "활성화 + 허용 Client ID(`com.ongod.app`) 등록"만 하면 되는 더 가벼운 경로라 이쪽이 낫다고 판단.
+- `profiles` 자동 생성은 앱 코드가 아니라 DB 트리거로 처리 — 클라이언트가 "로그인 성공 후 insert" 스텝을 깜빡해도 항상 보장되고, 표준적으로 널리 쓰이는 Supabase 레시피라 별도 ADR 없이 진행(전술적 결정).
+**변경 파일**: `apps/mobile/lib/auth/{AuthProvider.tsx,signIn.ts}`(신규), `apps/mobile/app/profile.tsx`(신규), `apps/mobile/app/_layout.tsx`, `apps/mobile/components/daily-card/DailyCard.tsx`, `apps/mobile/app.json`, `apps/mobile/package.json`(`expo-web-browser`/`expo-auth-session`/`expo-apple-authentication`/`expo-crypto`), `supabase/migrations/20260901120000_handle_new_user_profile.sql`(신규), 루트 `.env`/`.env.example`, `packages/config/src/env.ts`
+**검증**:
+- `pnpm turbo run typecheck lint test --filter='!@ongod/admin'` — 17/17 통과(아래 "막힌 점"의 admin 이슈는 이 작업과 무관해서 제외).
+- iOS 시뮬레이터에서 실제 확인: 프로필 아이콘 → 모달 진입 → 게스트 안내 문구·Apple/Google 버튼 정상 렌더링.
+  - **Google**: 버튼 탭 → iOS 시스템 `ASWebAuthenticationSession` 프롬프트("Expo가 supabase.co를 사용하여 로그인하려고 합니다") 정상 표시 → 계속 진행하면 실제 dev Supabase(`bauchkybtccrclasheqf.supabase.co`)로 요청이 가서 `{"code":400,"error_code":"validation_failed","msg":"Unsupported provider: provider is not enabled"}` 응답 확인 — 이건 **예상된 결과**(Supabase에서 Google 프로바이더를 아직 안 켰음)이자 동시에 클라이언트→Supabase 전체 파이프라인이 정확히 작동한다는 증거임.
+  - **Apple**: 버튼 탭 → 실제 "Apple로 로그인" 시스템 다이얼로그가 뜸(사용자 실제 Apple ID 기준). 다만 다이얼로그 문구가 "'Expo Go'의 계정을 생성하십시오"로 떠서, 이 인증이 우리 앱(`com.ongod.app`)이 아니라 **Expo Go 자신의 앱 신분**으로 이루어진다는 걸 확인함 — 즉 여기서 로그인을 완료해도 나오는 identityToken의 audience가 Expo Go 것이라 Supabase가 거부할 것이 뻔하고, 실제 사용자의 개인 Apple ID로 의미 없는 인증을 진행시키는 게 되어 **다이얼로그를 취소하고 진행 안 함**. 코드가 네이티브 흐름을 정확히 트리거한다는 것까지만 확인.
+  - 게스트 모드: 로그인 화면 닫아도 Daily Card·가사 열람 전부 그대로 동작 확인(비로그인 상태 아무 영향 없음).
+**막힌 점 / 다음 할 일**:
+- **Supabase Auth 설정 + DB 마이그레이션 적용에 PAT 필요** — 사람에게 요청함([human-actions.md](../human-actions.md) "P2-S6 후속"). 받으면: (1) Google 프로바이더 활성화(Web Client ID·secret 입력), (2) Apple 프로바이더 활성화 + 허용 Client ID에 `com.ongod.app` 추가, (3) `20260901120000_handle_new_user_profile.sql` 적용, (4) Google 로그인 종단 재검증(실제 계정 생성 + `profiles` 자동 생성 확인).
+- **Apple 로그인 실제 검증은 EAS 개발 빌드 필요** — Expo Go 구조적 한계라 지금은 불가능. Apple Developer의 Sign in with Apple capability는 사람이 켰는지 아직 확인 안 됨(`human-actions.md` P2-S6-T0a).
+- **중요 발견(내 작업과 무관하지만 기록 필요)**: `pnpm turbo run typecheck` 전체 실행 중 `@ongod/admin`이 실패하는 걸 발견함 — pnpm hoisted 레이아웃에서 `next`가 루트로 완전히 호이스팅되면서 admin의 React 19 타입과 루트의(mobile용) React 18 타입이 한 컴파일에 섞이는 문제로 보임(ADR-0005 이후 잠재해있다가 이번에 패키지 설치로 캐시 무효화되며 처음 드러난 듯). 어설픈 수정 시도는 되돌리고 정확한 진단만 [handoff.md](./handoff.md)에 남김 — admin/Next.js는 backend 트랙 소관이라 내가 깊이 고치지 않음. **`apps/mobile`/`packages/*`는 이 문제와 무관하게 전부 정상**(위 검증 항목 참고).
+- 시뮬레이터의 `supabase` CLI가 OnGod와 무관한 다른 계정/프로젝트(`mission-talk`, `oghdy's Project`)에 로그인돼 있는 걸 발견함 — OnGod 마이그레이션 적용에 이 세션을 쓰면 안 됨(다른 프로젝트 건드릴 위험). PAT 받으면 Management API로 우회하면 되니 문제는 없음.
+- Google 프로바이더가 켜지면 다음 세션에서 바로 실제 로그인 종단 테스트 가능한 상태까지 코드는 다 준비됨.

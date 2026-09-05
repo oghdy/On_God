@@ -54,3 +54,17 @@
 **영향**: (1)은 하위호환이라 admin 쪽 코드 변경 불필요. (2)는 저장소 전체 `node_modules` 레이아웃이 바뀌는 변경이라 admin도 영향권 — 변경 후 `pnpm turbo run typecheck lint test`(admin 포함 7개 워크스페이스)가 모두 통과함은 확인했지만, pnpm의 엄격한 격리(phantom dependency 방지)가 전역적으로 느슨해진 것은 알아둬야 함. 다음에 backend 세션이 새 패키지를 설치하다 이상하게 동작하면 이 변경을 의심할 것. CI 캐시 관련 첫 실행이 느려질 수 있음(레이아웃 변경으로 캐시 무효화).
 **관련**: [ADR-0005](../decisions/0005-pnpm-hoisted-linker.md), [frontend-log P2-S1-T1~T6](./frontend-log.md#2026-09-01--p2-s1-t1t6--expo-router-골격--supabase-연결--데이터-레이어)
 **상태**: [ ] 미해결
+
+## 2026-09-01 · frontend → backend
+
+**변경**: 새 마이그레이션 `supabase/migrations/20260901120000_handle_new_user_profile.sql` 추가 — `auth.users`에 새 행이 생기면(최초 로그인) `public.profiles`를 자동으로 만들어주는 트리거(`on_auth_user_created` → `handle_new_user()`). P2-S6-T3(로그인 시 profiles 자동 생성) 대응.
+**영향**: 아직 **dev/prod DB 어디에도 적용 안 됨** — 로컬에 SQL 파일만 만들어뒀다. 적용하려면 Supabase Management API(PAT 필요, 사람에게 요청해둠 — [human-actions.md](../human-actions.md) "P2-S6 후속" 참고) 또는 `supabase db push`(단, 이 머신의 `supabase` CLI 로그인 세션이 OnGod 프로젝트가 아닌 다른 계정/조직에 연결돼 있어서 — 아래 항목 참고 — 그대로 쓰면 안 됨, 재로그인 필요)로 적용해야 한다. backend가 먼저 이 파일을 적용하게 되면 프론트 쪽에 알려주면 좋음(중복 적용 방지).
+**관련**: [frontend-log P2-S6](./frontend-log.md#2026-09-01--p2-s6--인증-apple구글-로그인--게스트-모드)
+**상태**: [ ] 미해결
+
+## 2026-09-01 · frontend → backend
+
+**변경**: `pnpm turbo run typecheck lint test` 전체 실행 중 `@ongod/admin:typecheck`가 실패하는 걸 발견함 — `app/layout.tsx`, `app/(admin)/layout.tsx` 등에서 `ReactNode`/`ReactPortal` 타입 불일치, `<form action={서버액션함수}>`가 `string`에 할당 안 된다는 에러. **admin 코드 자체의 버그가 아니라 pnpm 의존성 레이아웃 문제로 보인다**: `next` 패키지가 루트(`node_modules/next`)에 완전히 호이스팅되는데, admin은 React 19(`apps/admin/node_modules/@types/react@19.1.17`)를 쓰고 루트에는 mobile이 쓰는 React 18(`node_modules/@types/react@18.3.31`)이 호이스팅돼 있어서, next의 내부 타입 참조가 admin 것이 아니라 루트의(18.x) `@types/react`를 잡아버리는 것으로 추정 — 서로 다른 `ReactNode` 정의 두 개가 한 컴파일에 섞이는 전형적인 증상(참고: `Type 'bigint' is not assignable to type 'ReactNode'`처럼 React 19 전용 타입이 걸리는 에러가 같이 나옴).
+**영향**: **이건 지금 막 생긴 문제가 아니라 P2-S1의 `node-linker=hoisted` 전환(ADR-0005) 이후 계속 잠재해있었을 가능성이 높다** — turbo 캐시가 `admin:typecheck`를 계속 캐시 히트로 넘겨서 실제로 재실행된 적이 없다가, 이번에 `apps/mobile`에 새 패키지(`expo-web-browser` 등)를 여럿 설치하면서 캐시가 무효화돼 처음으로 다시 실행되며 드러난 것으로 보인다. 대충 손댄 해결책(`apps/admin/tsconfig.json`에 `typeRoots` 제한)을 시도해봤는데 에러 모양만 바뀌고 완전히 해결되지는 않아서(next 자체의 호이스팅 위치 문제라 admin의 tsconfig만으로는 근본 해결이 안 됨) **되돌렸다** — admin/Next.js 쪽은 backend 트랙 소관이라 어설프게 고치기보다 정확히 진단만 남겨둔다. 확실한 건 `apps/mobile`/`packages/*`는 이 문제와 무관하게 전부 정상 통과한다는 것(`pnpm turbo run typecheck lint test --filter='!@ongod/admin'` = 17/17 성공). 근본 해결책 후보: (1) `apps/admin`이 `next`를 직접 `dependencies`에 명시해서 강제로 admin 밑에 nest되게 하기, (2) `.npmrc`에 `next`/`@types/react*` 계열만 hoist 안 되게 패턴 지정, (3) ADR-0005 자체를 재검토(hoisted 대신 isolated + `public-hoist-pattern`으로 필요한 것만 선택적 hoist) — 다만 (3)은 Expo/Metro 쪽이 다시 깨질 수 있어 신중히 접근할 것.
+**관련**: [ADR-0005](../decisions/0005-pnpm-hoisted-linker.md), [frontend-log P2-S6](./frontend-log.md#2026-09-01--p2-s6--인증-apple구글-로그인--게스트-모드)
+**상태**: [ ] 미해결

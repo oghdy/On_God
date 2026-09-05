@@ -9,6 +9,7 @@ import { useAppFonts } from "../lib/fonts";
 import { theme } from "../lib/theme";
 import { asyncStoragePersister } from "../lib/query/persister";
 import { queryClient } from "../lib/query/client";
+import { AuthProvider } from "../lib/auth/AuthProvider";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -28,13 +29,17 @@ export default function RootLayout() {
         client={queryClient}
         persistOptions={{ persister: asyncStoragePersister, maxAge: 24 * 60 * 60 * 1000 }}
       >
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: theme.background },
-          }}
-        />
-        <StatusBar style="light" />
+        <AuthProvider>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: theme.background },
+            }}
+          >
+            <Stack.Screen name="profile" options={{ presentation: "modal" }} />
+          </Stack>
+          <StatusBar style="light" />
+        </AuthProvider>
       </PersistQueryClientProvider>
     </SafeAreaProvider>
   );

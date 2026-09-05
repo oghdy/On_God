@@ -31,6 +31,11 @@ export const envSchema = z.object({
   YOUTUBE_API_KEY: z.string().min(1).optional(),
   GENIUS_ACCESS_TOKEN: z.string().min(1).optional(),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
+
+  /** P2-S6: Supabase Auth Google 프로바이더 설정에 쓰인다(앱 코드에는 안 들어감). */
+  GOOGLE_IOS_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_WEB_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_WEB_CLIENT_SECRET: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
