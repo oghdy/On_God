@@ -38,16 +38,16 @@
 
 ### Task
 
-- 🧑 **P1-S2-T0a** — **Apple Music API 키 발급**
-  *당신: Apple Developer 계정($99/년)에서 MusicKit 키(Team ID, Key ID, .p8) 발급 → 전달*
+- [x] 🧑 **P1-S2-T0a** — **Apple Music API 키 발급** ([로그](./logs/backend-log.md#2026-09-05--p1-s2-t0at1-후속--apple-music-키-반영--라이브-검증))
+  *완료 — Media ID(`media.com.ongod.app`) + MusicKit 키 발급받아 전달받음. Team ID/Key ID/.p8 반영 및 라이브 검증 완료*
 - ⏸️ **P1-S2-T0b** — **Spotify API 키 발급 — 보류**
   *2026-08-28: Spotify 개발자 대시보드가 "Upgrade to Premium to access the Web API" 메시지로 막힘 (최근 정책 변경으로 보임, 무료 계정으로는 API 접근 자체가 막힌 상태). Spotify는 필수 provider가 아니라서(앨범커버/장르/발매연도는 Apple Music이 커버) 일단 건너뛰고 나머지 먼저 진행하기로 함. 나중에 Premium 구독하거나 다른 계정으로 재시도하면 그때 어댑터 추가*
 - 🧑 **P1-S2-T0c** — **YouTube Data API 키 발급**
   *당신: Google Cloud Console에서 YouTube Data API v3 활성화 → API 키 전달*
 - 🧑 **P1-S2-T0d** — **Genius API 키 발급**
   *당신: [genius.com/api-clients](https://genius.com/api-clients)에서 앱 생성 → access token 전달*
-- [x] 🤖 **P1-S2-T1** — Apple Music 어댑터 (앨범커버·링크·장르·발매연도) ([로그](./logs/backend-log.md#2026-08-28--p1-s2-t1t5--genius유튜브애플뮤직스포티파이-어댑터--계약-테스트))
-  *구현은 완료, 실제 키 없어서 라이브 검증은 아직 — JWT 서명 로직은 테스트용 키 쌍으로 검증함*
+- [x] 🤖 **P1-S2-T1** — Apple Music 어댑터 (앨범커버·링크·장르·발매연도) ([로그](./logs/backend-log.md#2026-08-28--p1-s2-t1t5--genius유튜브애플뮤직스포티파이-어댑터--계약-테스트), [라이브 검증](./logs/backend-log.md#2026-09-05--p1-s2-t0at1-후속--apple-music-키-반영--라이브-검증))
+  *구현 완료 + 2026-09-05 실제 키로 라이브 검증 완료(실제 Apple Music 카탈로그 조회 성공)*
 - [x] ⏸️ 🤖 **P1-S2-T2** — Spotify 어댑터 (트랙 링크·popularity) ([로그](./logs/backend-log.md#2026-08-28--p1-s2-t1t5--genius유튜브애플뮤직스포티파이-어댑터--계약-테스트))
   *구현 완료, 키 발급 보류라 라이브 검증 못 함*
 - [x] 🤖 **P1-S2-T3** — YouTube 어댑터 (MV/오디오 매칭) ([로그](./logs/backend-log.md#2026-08-28--p1-s2-t1t5--genius유튜브애플뮤직스포티파이-어댑터--계약-테스트))

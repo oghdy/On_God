@@ -528,4 +528,13 @@
 - **Phase 1 S4 전부 완료.** 이걸로 Phase 1 전체(S1~S7)가 사람 개입 없이 갈 수 있는 데까지 다 감
 - 남은 건 정말로 사람만 할 수 있는 것뿐: P1-S2-T0a(Apple Music 키 — 발급되면 앨범커버 우선순위 1번으로 자동 승격됨), P1-S5-T6(실제 콘텐츠 검수, 지속 운영)
 
+## 2026-09-05 · P1-S2-T0a/T1 후속 — Apple Music 키 반영 + 라이브 검증
+
+**Task**: [P1-S2-T0a](../phase-1-content-pipeline.md#task), [P1-S2-T1](../phase-1-content-pipeline.md#task)
+**한 일**: 사람이 발급한 Apple Music(MusicKit) Team ID·Key ID·`.p8` 개인키를 받아 `apps/admin/.env.local`에 반영(`APPLE_MUSIC_TEAM_ID`/`APPLE_MUSIC_KEY_ID`/`APPLE_MUSIC_PRIVATE_KEY`, 개행은 `\n` 이스케이프로 저장 후 `env.server.ts`에서 복원). `packages/integrations`의 기존 어댑터(`apple-music.ts`, 2026-08-28에 구현만 해두고 라이브 검증 못 했던 것)를 실제 키로 임시 vitest 케이스를 만들어 라이브 호출 → 검증 후 그 파일은 삭제(코드베이스에는 남기지 않음, 계약 테스트는 기존 mock 기반 테스트로 충분).
+**왜 이렇게**: Apple Music 키 발급 과정에서 사람이 겪은 시행착오 — Key 생성 화면의 "Media Services" 항목이 "There are no identifiers available"로 계속 막혔던 이유는 **App ID가 아니라 별도의 "Media ID"를 만들어야 하는 것**이었음(App ID는 클라이언트 앱 통합용, Media ID가 서버-투-서버 카탈로그 API용). 이 삽질은 Apple 공식 문서에도 명확히 안 나와 있어서 Apple Developer Forums 검색으로 확인함. 최종적으로 Media ID(`media.com.ongod.app`, MusicKit만 활성화, ShazamKit/Apple Music Feed는 불필요해서 제외)로 키 재발급받음.
+**변경 파일**: `.gitignore`(`*.p8` 패턴 추가 — 사람이 프로젝트 루트에 내려받은 `.p8` 파일을 실수로 커밋하지 않도록), `apps/admin/.env.local`(Apple Music 키 3종 추가, 커밋 안 됨)
+**검증**: 임시 라이브 테스트로 실제 Apple Music 카탈로그 조회 성공 — `"Go Down Moses" by Louis Armstrong` 검색 → 앨범명·1958년 발매·장르 "Jazz"·600x600 앨범아트 URL·`externalId`/`externalUrl` 전부 정상 응답 확인. `buildMetadataProviders()`(`apps/admin/lib/pipeline/providers.ts`)의 조건문(`APPLE_MUSIC_TEAM_ID && APPLE_MUSIC_KEY_ID && APPLE_MUSIC_PRIVATE_KEY` 모두 존재 시 등록)이 이제 자동으로 활성화됨 — 코드 변경 전혀 없이 다음 파이프라인 실행부터 Apple Music이 앨범커버 우선순위 1번으로 자동 반영됨(ADR-0003 의도대로).
+**막힌 점 / 다음 할 일**: 없음. 이제 Phase 1에서 진짜 사람만 할 수 있는 일은 P1-S5-T6(콘텐츠 검수, 지속 운영)만 남음. `AuthKey_7345NTF2MW.p8` 원본 파일은 프로젝트 루트에 그대로 있음(`.gitignore`로 커밋은 안 되지만, 원한다면 다운로드 폴더 등 저장소 밖으로 옮겨서 백업해도 됨 — 키 내용은 이미 `.env.local`에 반영돼서 그 파일이 없어도 동작에는 지장 없음).
+
 <!-- 아래에 새 로그 항목을 계속 추가한다 -->

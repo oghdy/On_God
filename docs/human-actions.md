@@ -36,7 +36,7 @@
 ## Phase 1 — Content Pipeline
 
 - [x] **P1-S1-T5** 🧑 최초 운영자 계정 생성·이메일 전달 (완료 — `test@ongod.com`, 브라우저 로그인으로 확인됨)
-- [ ] **P1-S2-T0a** 🧑 Apple Music API 키 발급
+- [x] **P1-S2-T0a** 🧑 Apple Music API 키 발급 (완료, 라이브 검증됨 — [로그](./logs/backend-log.md#2026-09-05--p1-s2-t0at1-후속--apple-music-키-반영--라이브-검증))
 - [ ] ⏸️ **P1-S2-T0b** 🧑 Spotify API 키 발급 — 보류 (2026-08-28: 무료 계정으로 Web API 접근 불가, Premium 요구. 필수 아니라서 스킵하고 진행 중)
 - [x] **P1-S2-T0c** 🧑 YouTube Data API 키 발급 (완료, 라이브 검증됨)
 - [x] **P1-S2-T0d** 🧑 Genius API 키 발급 (완료, 라이브 검증됨)
