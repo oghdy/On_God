@@ -7,4 +7,7 @@ export const queryKeys = {
   lyrics: {
     bySong: (songId: string) => ["lyrics", "bySong", songId] as const,
   },
+  song: {
+    byId: (songId: string) => ["song", "byId", songId] as const,
+  },
 };

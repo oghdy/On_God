@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { spacing } from "@ongod/ui-tokens";
+import { radius, spacing } from "@ongod/ui-tokens";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { StyleSheet, View, useWindowDimensions } from "react-native";
+import { useRouter } from "expo-router";
+import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { theme } from "../../lib/theme";
@@ -20,6 +21,7 @@ interface DailyCardProps {
 export function DailyCard({ pick }: DailyCardProps) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { song, songInfo } = pick;
 
   return (
@@ -59,6 +61,10 @@ export function DailyCard({ pick }: DailyCardProps) {
             {songInfo.descriptionKo}
           </Text>
         ) : null}
+        <Pressable style={styles.lyricsButton} hitSlop={16} onPress={() => router.push(`/lyrics/${song.id}`)}>
+          <Ionicons name="reader-outline" size={18} color={theme.textPrimary} />
+          <Text variant="bodyMedium">가사 보기</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -85,5 +91,16 @@ const styles = StyleSheet.create({
   },
   description: {
     marginTop: spacing.sm,
+  },
+  lyricsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.full,
+    backgroundColor: "rgba(255,255,255,0.12)",
   },
 });

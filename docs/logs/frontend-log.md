@@ -96,3 +96,26 @@
 **막힌 점 / 다음 할 일**:
 - 시뮬레이터가 세션 중간에 재부팅되어(iPhone 16 Pro → iPhone 16 Pro Max로 바뀜) 실기기 Apple 계정 확인 팝업이 떴음 — 사용자 실제 Apple ID 관련이라 손대지 않고 "지금 안 함"으로만 넘겼음(앱 동작과 무관).
 - 다음 Task는 P2-S4(가사 뷰어) — `useSongLyrics`(P2-S1-T4에서 이미 만듦)를 처음 화면에 연결하게 됨.
+
+## 2026-09-01 · P2-S4-T1~T5 — 가사 뷰어
+
+**Task**: [P2-S4](../phase-2-core-app.md#s4-가사-뷰어-srs-31-p0)
+**한 일**:
+- 신규 라우트 `app/lyrics/[songId].tsx` 추가. `DailyCard`의 "가사 보기" 버튼(`Pressable` + `useRouter().push()`)에서 진입한다.
+- P2-S4-T1: `Tab`(P2-S2에서 만든 컴포넌트) 재사용해 원문/해석 전환. 로컬 `useState`로 탭 상태 관리.
+- P2-S4-T2: 뒤로가기 버튼 + 앨범 썸네일(`album_cover_thumbnail_url`, 없으면 음표 아이콘) + 곡명을 스크롤 안 되는 헤더 View로 분리하고, 가사 본문만 `ScrollView`에 넣어 스크롤해도 헤더가 고정되게 함.
+- P2-S4-T3: `lyrics.translationNotes`를 "해석" 탭에서만, "번역 노트" 캡션 라벨과 함께 본문 아래 표시.
+- P2-S4-T4(SRS 4.3): `lyrics.sourceUrl`에서 호스트명만 추출(`new URL(...).hostname`)해 "가사 출처: genius.com" 형태로 표시, 탭하면 `Linking.openURL`로 원문 열람 가능. 두 탭 모두에서 항상 노출(저작권 표기는 탭과 무관하게 필요).
+- P2-S4-T5: 성능은 별도 가상화 없이 기본 `ScrollView` + 단일 `Text`로 처리(가사가 리스트가 아니라 연속 텍스트라 `FlatList` 가상화가 필요한 상황이 아님 — 과한 최적화 안 함). 빈 상태는 3단계로 구분: (1) `lyrics` row 자체가 없음 → "가사가 아직 준비되지 않았어요" 전체 화면 안내, (2) row는 있지만 현재 탭 필드(원문 또는 해석)만 없음 → 탭 안에서 "원문 가사가 아직 없어요"/"한국어 해석이 아직 없어요", (3) 곡 자체를 못 찾음(`useSong`이 null) → "곡 정보를 찾을 수 없어요".
+- 곡 메타(제목·아티스트·썸네일)만 필요한 화면을 위해 `hooks/useSong.ts` 신규 추가.
+**왜 이렇게**:
+- `DailyCard`에서 이미 곡 전체 데이터를 들고 있지만, 라우트 파라미터로 제목·썸네일 URL 같은 걸 문자열 인코딩해서 넘기는 대신 `useSong(songId)`로 다시 조회하는 쪽을 택함 — 한글 제목·긴 URL을 쿼리 파라미터에 안전하게 인코딩하는 것보다 단순하고, TanStack Query 캐시가 있으면 사실상 즉시 반환되어 비용도 작음.
+- 아이콘 세트는 P2-S3에서 이미 채택한 Ionicons를 그대로 씀(뒤로가기 화살표, 썸네일 없을 때 음표).
+**변경 파일**: `apps/mobile/app/lyrics/[songId].tsx`(신규), `apps/mobile/hooks/useSong.ts`(신규), `apps/mobile/lib/query/keys.ts`(`song.byId` 키 추가), `apps/mobile/components/daily-card/DailyCard.tsx`(가사 보기 버튼 추가)
+**검증**:
+- `pnpm turbo run typecheck lint test` — 저장소 전체 19개 태스크 통과.
+- iOS 시뮬레이터(iPhone 16 Pro Max, Expo Go)에서 실제 dev DB 데이터("Go Down Moses" 가사, 원문 750자/해석 471자/번역노트 포함)로 end-to-end 확인: 가사 보기 버튼 → 라우트 진입 → 원문 탭 기본 표시 → 스크롤해도 헤더(뒤로가기+썸네일+곡명) 고정됨 확인 → 해석 탭 전환 시 한국어 번역 정상 표시 → 스크롤 끝까지 내리면 "번역 노트" 라벨+본문, 그 아래 "가사 출처: genius.com" 표시 확인 → 뒤로가기로 Daily Card 화면 복귀 확인.
+- 빈 가사(주 3단계 케이스)는 dev DB에 해당하는 곡이 없어 코드로만 구현, 실제 화면 확인은 아직 못함 — 다른 곡 데이터가 생기면 재확인 필요.
+**막힌 점 / 다음 할 일**:
+- 시뮬레이터 좌표계 문제로 한참 헤맴: 이 tool의 스크린샷은 실제로 표시되는 이미지(약 921×2000)와 시뮬레이터 네이티브 해상도(1320×2868, 3배)가 다르고, 탭 좌표는 point 단위(440×956, 네이티브의 1/3)를 써야 하는데 스크린샷에서 눈대중으로 좌표를 읽어 변환하다 보니 버튼 위치를 두 번이나 잘못 짚었음. 결국 `xcrun simctl io booted screenshot`으로 직접 네이티브 스크린샷을 뽑고 Python으로 버튼의 정확한 픽셀 bounding box를 찾아서 좌표를 계산하니 맞았음. 그 와중에 "Link가 존재하지 않는다"는 별개의 Fast Refresh 스테일 버그도 만나서(import를 제거했는데 이전 모듈 그래프가 안 지워짐) `expo start --clear`로 완전 재시작이 필요했음 — 둘 다 이번 세션 한정 디버깅 이슈였고 코드 결함은 아님.
+- 다음 Task는 P2-S5(스트리밍 딥링크) — `packages/ui-tokens`의 `streaming` 브랜드 컬러(P2-S2-T3)를 처음 실제로 쓰게 됨.
