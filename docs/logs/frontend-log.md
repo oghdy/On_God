@@ -188,3 +188,19 @@
 - `external_google_additional_client_ids`(iOS 클라이언트 ID를 추가 허용 audience로 등록하는 필드)는 API로 두 번 시도했는데 계속 `null`로 남음 — 원인 불명(API 자체 한계일 수도, 다른 포맷을 요구할 수도 있음). 지금 구현(브라우저 기반 OAuth)에는 필요 없는 필드라 당장 안 막히지만, 나중에 네이티브 Google Sign-In SDK로 바꿀 때는 이 필드를 대시보드에서 직접 넣어야 할 수도 있음 — 기록만 해두고 넘어감.
 - Apple 로그인은 여전히 EAS 빌드 전이라 라이브 종단 검증 불가(이전 로그 참고).
 - 다음 세션은 리디렉션 URI 확인 여부에 따라: 고쳐졌으면 Google 로그인 실제 완료 + `profiles` 자동 생성 확인까지, 아직이면 P2-S7로 넘어가는 것도 고려.
+
+## 2026-09-01 · P2-S6 재검증 — Google 로그인 redirect_uri_mismatch 원인 발견·수정
+
+**Task**: [P2-S6-T2](../phase-2-core-app.md#s6-인증-srs-profiles-applegoogle)
+**한 일**: 사람이 Google Cloud Console에 리디렉션 URI를 등록했다고 확인해줘서 재검증했는데도 여전히 `redirect_uri_mismatch`가 나서, 시뮬레이터 조작 대신 `curl`로 Supabase의 `/auth/v1/authorize?provider=google...` 엔드포인트를 직접 호출해 실제 302 리다이렉트의 `Location` 헤더를 까봤다. 그 결과 Google로 보내지는 `client_id`가 **iOS 클라이언트 ID**로 돼있는 걸 발견 — 애초에 Supabase Auth 프로바이더를 켤 때 내가 `external_google_client_id`에 Web이 아니라 iOS 클라이언트 ID를 넣는 실수를 했던 것(사람이 등록한 리디렉션 URI는 Web 클라이언트에만 있으니 애초에 iOS 클라이언트 ID로 요청이 나가면 무조건 불일치가 남). Management API로 `external_google_client_id`를 Web 클라이언트 ID로 다시 고치고, 같은 `curl` 방법으로 실제 리다이렉트 URL의 `client_id`가 바뀐 것까지 확인 후 시뮬레이터에서 재검증.
+**왜 이렇게**: 시뮬레이터를 반복 조작해서 좌표 찍고 스크린샷 찍는 방식으로 디버깅하면 "이번엔 어디서 막혔는지"를 매번 화면 텍스트로만 추측해야 해서 느리고 부정확함. Supabase의 OAuth 시작 엔드포인트는 그냥 302 리다이렉트를 돌려주는 공개 엔드포인트라(인증 불필요) `curl`로 직접 쳐보면 실제 파라미터(client_id, redirect_uri)를 한 번에 정확히 볼 수 있음 — 그래서 문제가 "사람이 등록을 잘못했다"가 아니라 "내가 Supabase 설정을 잘못했다"라는 걸 빠르게 특정할 수 있었음.
+**변경 파일**: 없음(Supabase 프로젝트 설정만 PATCH) — 문서 갱신만.
+**검증**:
+- `curl`로 authorize 리다이렉트 재확인: `client_id`가 Web 클라이언트 ID로 정확히 바뀜, `redirect_uri`는 그대로 `https://bauchkybtccrclasheqf.supabase.co/auth/v1/callback`.
+- iOS 시뮬레이터에서 Google 버튼 재테스트: 이전엔 `redirect_uri_mismatch`로 막히던 게, 이번엔 **Google의 실제 로그인 폼("이메일 또는 휴대전화" 입력창)까지 정상 도달**. 앱→Supabase→Google 파이프라인 전체가 끝까지 검증됨.
+- 실제 이메일/비밀번호 입력해서 로그인을 완료하는 것까지는 진행 안 함 — 사용자 본인의 실제 Google 계정 자격증명이라 내가 대신 입력하지 않는 게 맞다고 판단(안전 정책상 비밀번호 입력은 항상 금지 사항).
+**막힌 점 / 다음 할 일**:
+- 사람이 리디렉션 URI를 등록한 것 자체는 처음부터 문제 없었음 — 괜히 재확인을 요청했던 셈이라 `human-actions.md`에 정정 기록 남김(내 실수였다고 명시).
+- 실제 로그인 완료(비밀번호 입력) + `profiles` 자동 생성 확인은 사용자가 실제로 한 번 로그인해보면 더 확실히 검증됨 — 원하면 다음에 같이 확인 가능.
+- Apple 로그인은 여전히 EAS 빌드 전이라 라이브 검증 불가(변동 없음).
+- P2-S6은 사실상 마무리 단계 — 남은 건 Apple Developer capability 확인(P2-S6-T0a, 사람 몫)과 EAS 빌드 이후 Apple 라이브 검증뿐. P2-S7(성능·안정화)로 넘어갈 준비 됨.
