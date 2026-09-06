@@ -29,7 +29,7 @@
 - [x] **P0-S2-T8** 🤝 마이그레이션 적용 시 CLI 인증/DB password 입력 (완료)
 - [x] **P0-S3-T1** 🤝 타입 자동생성 위해 project ref·로그인 상태 제공 — 완료. Docker는 필요 없었음: `supabase gen types typescript --project-id <ref>`가 로컬 컨테이너 없이 클라우드 dev 프로젝트에서 직접 타입을 생성함. 손으로 쓴 버전은 CLI 실제 출력으로 교체함 ([로그](./logs/backend-log.md#2026-08-28--p0-s3-t1-후속--손으로-쓴-db-타입을-cli-생성-타입으로-교체))
 - [ ] **P0-S5-T4** 🧑 발급한 시크릿 값들을 `.env`/Supabase·Vercel·EAS에 입력 — Supabase 부분은 완료, 나머지는 Phase 1 외부 API 키 발급 후
-- [ ] **P0-S6-T3** 🤝 Expo 계정 생성·EAS 프로젝트 연결 (`eas.json` 프로파일은 준비함, [로그](./logs/backend-log.md#2026-08-28--p0-s6-t1t5--cicd-기초) 참고)
+- [x] **P0-S6-T3** 🤝 Expo 계정 생성·EAS 프로젝트 연결 (완료 — 계정(`doyis`) 생성 후 로그인, `eas init`으로 프로젝트 연결까지 마침. 프로젝트: [expo.dev/accounts/doyis/projects/ongod](https://expo.dev/accounts/doyis/projects/ongod), [로그](./logs/frontend-log.md#2026-09-06--eas-프로젝트-연결) 참고)
 - [ ] **P0-S6-T4** 🤝 Vercel에 GitHub 레포 연결, 환경변수 입력 (`vercel.json`·환경변수 목록은 준비함, [`docs/secrets-policy.md`](./secrets-policy.md) 참고)
 - [x] **(사전)** 🧑 GitHub 레포 생성 (또는 내가 `git init` 후 remote 연결) — 완료 (`origin` → `github.com/oghdy/On_God`)
 
@@ -49,7 +49,7 @@
 ## Phase 2 — Core App
 
 - [ ] **P2-S2-T4** 🤝 유료·라이선스 폰트 사용 시 폰트 파일 제공 (무료 폰트로 처리해서 해당 없음)
-- [ ] **P2-S6-T0a** 🧑 Sign in with Apple 설정 → Supabase 입력값 전달 (Apple Developer에서 App ID `com.ongod.app`에 Sign in with Apple capability 켜는 절차 안내함, 확인 대기 중)
+- [x] **P2-S6-T0a** 🧑 Sign in with Apple 설정 (완료 — Apple Developer에서 App ID `com.ongod.app`에 capability 켜고 확인해주심. Supabase Auth 쪽은 이미 P2-S6에서 `com.ongod.app`을 허용 Client ID로 등록해둠)
 - [x] **P2-S6-T0b** 🧑 Google OAuth Client 생성 → Supabase 입력값 전달 (완료 — Web/iOS 클라이언트 ID·secret 전달받아 `.env`에 저장, Supabase Auth Google 프로바이더에도 반영 완료)
 - [x] **P2-S6 후속** 🧑 Supabase Personal Access Token 임시 제공 (완료 — 받은 즉시 Google/Apple 프로바이더 활성화 + `profiles` 자동생성 마이그레이션 적용에 쓰고 버림. 어떤 파일에도 저장 안 함)
 - [x] **P2-S6 후속2** 🧑 Google Cloud Console 리디렉션 URI 재확인 (완료 — 사용자가 정확히 등록함. **실제 원인은 내 쪽 실수였음**: Supabase Auth에 Google 프로바이더를 처음 켤 때 `external_google_client_id`에 Web 클라이언트 ID 대신 iOS 클라이언트 ID를 잘못 넣어놔서, iOS 클라이언트엔 등록 안 된 리디렉션 URI로 요청이 나가 계속 막혔던 것. Web 클라이언트 ID로 다시 고치고 나니 정상 동작 — 아래 로그 참고)

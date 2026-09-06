@@ -26,6 +26,15 @@
       "expo-font",
       "expo-apple-authentication",
       "@sentry/react-native"
-    ]
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "fc8decb2-0d58-4b4b-aa8b-5ba1999d5620"
+      }
+    },
+    "owner": "doyis"
   }
 }

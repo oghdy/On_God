@@ -231,3 +231,14 @@
 - 이미지 CDN 캐싱 헤더(`cache-control: no-cache`) 이슈는 backend의 Storage 업로드 코드를 고쳐야 해서 직접 안 고치고 `handoff.md`에 남김.
 - login_attempted/succeeded 트래킹은 코드는 넣었지만 이번엔 실제 로그인까지 다시 재현하지 않음(P2-S6에서 이미 Google OAuth 파이프라인 자체는 검증했음) — 나중에 실제 로그인 테스트할 때 이 이벤트도 같이 확인하면 됨.
 - Phase 2 전체 Task(S1~S7) 완료. 남은 건 사람 몫(Apple capability 확인, Sentry/분석 도구, EAS 빌드)과 Phase 3(위젯)뿐.
+
+## 2026-09-06 · EAS 프로젝트 연결
+
+**Task**: [P0-S6-T3](../phase-0-foundation.md) (사람 몫 항목, `human-actions.md` 참고 — Apple/Google 로그인·스트리밍 앱스킴 라이브 검증의 선행 조건이라 이번에 같이 처리)
+**한 일**: 사람이 Expo 계정(`doyis`) 생성 후 터미널에서 `npx eas-cli login`으로 로그인 완료해줘서, 이어서 `npx eas-cli init --account doyis --non-interactive`로 실제 EAS 프로젝트를 생성·연결함. `app.json`에 `extra.eas.projectId`와 `owner: "doyis"`가 자동으로 들어감.
+**왜 이렇게**: `eas login`은 계정 비밀번호가 필요해서 내가 대신 할 수 없는 부분이라 사람에게 그 한 단계만 요청하고, 로그인 이후(인증 토큰이 이 컴퓨터에 저장된 뒤)부터는 내가 이어서 처리함 — 안전 정책(비밀번호 직접 입력 금지)과 효율을 같이 챙긴 구조.
+**변경 파일**: `apps/mobile/app.json`(`extra.eas.projectId`, `owner` 추가)
+**검증**: `npx eas-cli whoami`로 로그인 계정 확인, `pnpm --filter @ongod/mobile typecheck`/`lint` 통과 확인.
+**막힌 점 / 다음 할 일**:
+- 계정이 개인(`doyis`)과 팀(`doyiss-team`) 두 개가 있어서 개인 계정으로 진행함 — 나중에 팀으로 옮기고 싶다면 말씀해달라고 안내 필요.
+- 이제 실제 `eas build --profile development --platform ios`로 개발 빌드를 만들 수 있는 상태 — 이건 Apple Developer 인증(빌드 서명)이 필요할 수 있어 사람 확인 후 진행하는 게 안전. 다음 세션에서 빌드 진행 여부 확인 필요.
