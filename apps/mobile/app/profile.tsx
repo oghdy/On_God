@@ -37,7 +37,13 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + spacing.xxl }]}>
-      <Pressable onPress={() => router.back()} hitSlop={16} style={styles.closeButton}>
+      <Pressable
+        onPress={() => router.back()}
+        hitSlop={16}
+        style={styles.closeButton}
+        accessibilityRole="button"
+        accessibilityLabel="닫기"
+      >
         <Ionicons name="close" size={24} color={theme.textPrimary} />
       </Pressable>
 

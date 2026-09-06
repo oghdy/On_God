@@ -3,12 +3,19 @@ import type { Song } from "@ongod/core";
 import { radius, streaming, type StreamingPlatform } from "@ongod/ui-tokens";
 import { Pressable, StyleSheet } from "react-native";
 
+import { track } from "../../lib/analytics/track";
 import { openStreamingLink } from "../../lib/streaming/deepLink";
 
 const PLATFORM_ICON: Record<StreamingPlatform, keyof typeof MaterialCommunityIcons.glyphMap> = {
   appleMusic: "apple",
   spotify: "spotify",
   youtube: "youtube",
+};
+
+const PLATFORM_LABEL: Record<StreamingPlatform, string> = {
+  appleMusic: "Apple Music",
+  spotify: "Spotify",
+  youtube: "YouTube",
 };
 
 interface StreamingButtonProps {
@@ -22,9 +29,14 @@ export function StreamingButton({ platform, song }: StreamingButtonProps) {
 
   return (
     <Pressable
-      onPress={() => void openStreamingLink(platform, song)}
+      onPress={() => {
+        track({ name: "streaming_link_opened", properties: { songId: song.id, platform } });
+        void openStreamingLink(platform, song);
+      }}
       style={[styles.button, { backgroundColor: brand.background }]}
       hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={`${PLATFORM_LABEL[platform]}에서 열기`}
     >
       <MaterialCommunityIcons name={PLATFORM_ICON[platform]} size={24} color={brand.foreground} />
     </Pressable>

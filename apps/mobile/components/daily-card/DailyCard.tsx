@@ -51,6 +51,8 @@ export function DailyCard({ pick }: DailyCardProps) {
         onPress={() => router.push("/profile")}
         hitSlop={12}
         style={[styles.profileButton, { top: insets.top + spacing.lg }]}
+        accessibilityRole="button"
+        accessibilityLabel="프로필, 로그인"
       >
         <Ionicons name="person-circle-outline" size={28} color={theme.textPrimary} />
       </Pressable>
@@ -72,7 +74,13 @@ export function DailyCard({ pick }: DailyCardProps) {
         <View style={styles.actions}>
           <StreamingButtons song={song} />
         </View>
-        <Pressable style={styles.lyricsButton} hitSlop={16} onPress={() => router.push(`/lyrics/${song.id}`)}>
+        <Pressable
+          style={styles.lyricsButton}
+          hitSlop={16}
+          onPress={() => router.push(`/lyrics/${song.id}`)}
+          accessibilityRole="button"
+          accessibilityLabel="가사 보기"
+        >
           <Ionicons name="reader-outline" size={18} color={theme.textPrimary} />
           <Text variant="bodyMedium">가사 보기</Text>
         </Pressable>

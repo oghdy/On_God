@@ -204,3 +204,30 @@
 - 실제 로그인 완료(비밀번호 입력) + `profiles` 자동 생성 확인은 사용자가 실제로 한 번 로그인해보면 더 확실히 검증됨 — 원하면 다음에 같이 확인 가능.
 - Apple 로그인은 여전히 EAS 빌드 전이라 라이브 검증 불가(변동 없음).
 - P2-S6은 사실상 마무리 단계 — 남은 건 Apple Developer capability 확인(P2-S6-T0a, 사람 몫)과 EAS 빌드 이후 Apple 라이브 검증뿐. P2-S7(성능·안정화)로 넘어갈 준비 됨.
+
+## 2026-09-06 · P2-S7-T1~T5 — 성능·안정화
+
+**Task**: [P2-S7](../phase-2-core-app.md#s7-성능안정화-srs-42)
+**한 일**:
+- P2-S7-T1: `lib/perf/timing.ts` 신규 — JS 번들 evaluate 시점(`_layout.tsx` 최상단 import)을 기준점 삼아 `app/index.tsx`에서 오늘의 카드 콘텐츠가 처음 그려지는 시점까지 걸린 시간을 콘솔에 로그. 실제 iOS 시뮬레이터에서 4번 독립 측정(완전히 새로 리로드) 결과 297~384ms — SRS 4.2 목표(2000ms)의 5분의 1도 안 걸림. 별도 최적화 코드는 추가 안 함(이미 여유 있는데 손대면 괜히 복잡도만 늘어남).
+- P2-S7-T2: `curl -I`로 실제 앨범 커버 파일 응답 헤더 확인 — `content-type: image/webp`(포맷 확인됨), `server: cloudflare` + `cf-ray` 헤더(CDN 경유 확인됨). 근데 `cache-control: no-cache`라 엣지 캐싱이 실질적으로 꺼져있는 걸 발견 — 이건 프론트 코드가 아니라 백엔드 업로드 파이프라인에서 고칠 부분이라 `handoff.md`에 남김.
+- P2-S7-T3: `@sentry/react-native` 설치, `lib/sentry.ts`에서 DSN 없으면(`EXPO_PUBLIC_SENTRY_DSN` 미설정) 초기화를 건너뛰도록 방어적으로 작성 — Sentry 계정이 아직 없어도 이 커밋이 앱을 안 깨뜨림. `app/_layout.tsx`에서 `Sentry.wrap(RootLayout)`으로 루트를 감싸 크래시/에러를 자동 캡처하게 준비만 해둠.
+- P2-S7-T4: `lib/analytics/track.ts` — `daily_card_viewed`(오늘 카드 처음 보임), `lyrics_viewed`(가사 탭 진입/전환), `streaming_link_opened`(스트리밍 버튼), `login_attempted`/`login_succeeded`(Apple/Google), `logout` 6개 이벤트. 지금은 콘솔 로그만 남기고, 실제 분석 도구가 정해지면 이 파일 안의 `track()` 함수만 바꾸면 호출부는 안 건드려도 됨.
+- P2-S7-T5: 세 가지 확인·조치.
+  1. 폰트 스케일: `components/ui/Text.tsx`가 `allowFontScaling`을 건드리지 않아서(기본값 `true`) 시스템 글자 크기 설정이 그대로 반영됨 — 코드 변경 없음, 확인만.
+  2. 대비: `packages/ui-tokens`의 다크 팔레트 전체를 WCAG 2.x 공식으로 실제 계산해보니 `textTertiary`(#6E6E73)가 배경 대비 3.88:1로 본문 텍스트 기준(4.5:1) 미달 — "번역 노트"/"가사 출처" 같은 실제로 읽는 캡션 텍스트에 쓰이고 있어서 문제였음. `#84848A`(5.29:1)로 교체하고, 앞으로 이런 회귀를 못 잡는 일이 없게 `colors.test.ts`에 WCAG 대비비 계산 테스트를 추가함(본문 텍스트 3종 전부 4.5:1 이상인지 자동 검증).
+  3. 스크린리더: 인터랙티브 요소 전부에 `accessibilityRole`/`accessibilityLabel`(+ 필요한 곳엔 `accessibilityState`) 부여 — 스트리밍 버튼, Tab, Button(공통 컴포넌트), 프로필/가사보기/뒤로가기/닫기 아이콘 버튼, 가사 출처 링크, LoadingView.
+**왜 이렇게**:
+- 성능 계측은 별도 APM 라이브러리 없이 `Date.now()` 델타 + 콘솔 로그로 처리 — SRS가 요구하는 건 "2초 이내"라는 하나의 숫자 검증이지 상시 모니터링 인프라가 아니라서, 지금 필요한 것보다 무거운 도구를 들이지 않음(YAGNI).
+- Sentry/분석 도구 둘 다 "SDK/코드는 내가, 계정·키는 사람" 패턴을 그대로 따름(`docs/phase-2-core-app.md`에 이미 이렇게 정의돼 있었음) — DSN 없이도 안전하게 동작하도록 만들어서 사람이 계정을 언제 만들든 이 커밋이 블로킹하지 않게 함.
+- 대비 수정은 값만 바꾸고 끝내지 않고 회귀 테스트를 추가함 — 나중에 누군가(나 자신 포함) 팔레트를 다시 손대다 대비를 깨뜨려도 `pnpm test`가 바로 잡아주게.
+**변경 파일**: `apps/mobile/lib/perf/timing.ts`(신규), `apps/mobile/lib/sentry.ts`(신규), `apps/mobile/lib/analytics/track.ts`(신규), `apps/mobile/app/_layout.tsx`, `apps/mobile/app/index.tsx`, `apps/mobile/app/lyrics/[songId].tsx`, `apps/mobile/app/profile.tsx`, `apps/mobile/components/daily-card/DailyCard.tsx`, `apps/mobile/components/streaming/StreamingButton.tsx`, `apps/mobile/components/ui/{Button,Tab}.tsx`, `apps/mobile/components/state/LoadingView.tsx`, `apps/mobile/lib/auth/signIn.ts`, `apps/mobile/lib/env.ts`, `apps/mobile/.env.example`, `apps/mobile/app.json`(`@sentry/react-native` 플러그인), `apps/mobile/package.json`, `packages/ui-tokens/src/colors.ts`, `packages/ui-tokens/src/colors.test.ts`
+**검증**:
+- `pnpm turbo run typecheck lint test --filter='!@ongod/admin'` — 17/17 통과(admin 이슈는 무관, 기존 handoff 기록 참고).
+- `packages/ui-tokens` 신규 대비 테스트 통과(`textPrimary`/`textSecondary`/`textTertiary` 전부 4.5:1 이상).
+- iOS 시뮬레이터 실제 확인: 성능 로그 4회 측정(297~384ms), Sentry가 DSN 없이도 앱을 안 깨뜨리고 조용히 건너뜀(`[sentry] EXPO_PUBLIC_SENTRY_DSN이 없어서 초기화를 건너뜀` 로그 확인, `Sentry.wrap`이 `Sentry.init` 전에 불렸다는 벤인 경고만 뜸 — DSN 생기면 사라짐), `streaming_link_opened`/`lyrics_viewed` 이벤트가 실제 곡 데이터로 정확히 기록됨, "가사 출처" 캡션 텍스트가 육안으로도 이전보다 밝아진 것 확인.
+**막힌 점 / 다음 할 일**:
+- Sentry DSN, 분석 도구 키 — 둘 다 사람 몫으로 `human-actions.md`에 남김(둘 다 없어도 앱은 정상 동작).
+- 이미지 CDN 캐싱 헤더(`cache-control: no-cache`) 이슈는 backend의 Storage 업로드 코드를 고쳐야 해서 직접 안 고치고 `handoff.md`에 남김.
+- login_attempted/succeeded 트래킹은 코드는 넣었지만 이번엔 실제 로그인까지 다시 재현하지 않음(P2-S6에서 이미 Google OAuth 파이프라인 자체는 검증했음) — 나중에 실제 로그인 테스트할 때 이 이벤트도 같이 확인하면 됨.
+- Phase 2 전체 Task(S1~S7) 완료. 남은 건 사람 몫(Apple capability 확인, Sentry/분석 도구, EAS 빌드)과 Phase 3(위젯)뿐.

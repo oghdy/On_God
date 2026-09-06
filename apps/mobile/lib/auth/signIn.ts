@@ -12,6 +12,7 @@ import * as QueryParams from "expo-auth-session/build/QueryParams";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 
+import { track } from "../analytics/track";
 import { supabase } from "../supabase/client";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -31,6 +32,8 @@ async function completeSessionFromRedirectUrl(url: string): Promise<void> {
 
 /** 시스템 브라우저(ASWebAuthenticationSession 등)로 Google OAuth 동의 화면을 띄운다. */
 export async function signInWithGoogle(): Promise<void> {
+  track({ name: "login_attempted", properties: { provider: "google" } });
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: { redirectTo, skipBrowserRedirect: true },
@@ -41,12 +44,15 @@ export async function signInWithGoogle(): Promise<void> {
   const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
   if (result.type === "success") {
     await completeSessionFromRedirectUrl(result.url);
+    track({ name: "login_succeeded", properties: { provider: "google" } });
   }
   // result.type이 "cancel"/"dismiss"면 사용자가 취소한 것 — 에러 아님, 조용히 반환.
 }
 
 /** 네이티브 Sign in with Apple 버튼 → identityToken을 Supabase에 넘겨 세션 발급. */
 export async function signInWithApple(): Promise<void> {
+  track({ name: "login_attempted", properties: { provider: "apple" } });
+
   const credential = await AppleAuthentication.signInAsync({
     requestedScopes: [
       AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
@@ -63,9 +69,11 @@ export async function signInWithApple(): Promise<void> {
     token: credential.identityToken,
   });
   if (error) throw error;
+  track({ name: "login_succeeded", properties: { provider: "apple" } });
 }
 
 export async function signOut(): Promise<void> {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
+  track({ name: "logout", properties: {} });
 }

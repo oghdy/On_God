@@ -7,12 +7,15 @@ import { z } from "zod";
 const clientEnvSchema = z.object({
   EXPO_PUBLIC_SUPABASE_URL: z.string().url(),
   EXPO_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+  /** P2-S7-T3: 아직 발급 전이라 optional — 없으면 Sentry는 그냥 초기화를 건너뛴다. */
+  EXPO_PUBLIC_SENTRY_DSN: z.string().url().optional(),
 });
 
 function loadClientEnv() {
   const result = clientEnvSchema.safeParse({
     EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,
     EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+    EXPO_PUBLIC_SENTRY_DSN: process.env.EXPO_PUBLIC_SENTRY_DSN,
   });
   if (!result.success) {
     const issues = result.error.issues

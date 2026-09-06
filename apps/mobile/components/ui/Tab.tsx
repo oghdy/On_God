@@ -26,6 +26,9 @@ export function Tab({ options, selectedKey, onChange }: TabProps) {
             key={option.key}
             onPress={() => onChange(option.key)}
             style={[styles.segment, selected && styles.segmentSelected]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected }}
+            accessibilityLabel={option.label}
           >
             <Text variant="bodyMedium" color={selected ? theme.textPrimary : theme.textSecondary}>
               {option.label}

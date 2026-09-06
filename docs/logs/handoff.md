@@ -68,3 +68,10 @@
 **영향**: **이건 지금 막 생긴 문제가 아니라 P2-S1의 `node-linker=hoisted` 전환(ADR-0005) 이후 계속 잠재해있었을 가능성이 높다** — turbo 캐시가 `admin:typecheck`를 계속 캐시 히트로 넘겨서 실제로 재실행된 적이 없다가, 이번에 `apps/mobile`에 새 패키지(`expo-web-browser` 등)를 여럿 설치하면서 캐시가 무효화돼 처음으로 다시 실행되며 드러난 것으로 보인다. 대충 손댄 해결책(`apps/admin/tsconfig.json`에 `typeRoots` 제한)을 시도해봤는데 에러 모양만 바뀌고 완전히 해결되지는 않아서(next 자체의 호이스팅 위치 문제라 admin의 tsconfig만으로는 근본 해결이 안 됨) **되돌렸다** — admin/Next.js 쪽은 backend 트랙 소관이라 어설프게 고치기보다 정확히 진단만 남겨둔다. 확실한 건 `apps/mobile`/`packages/*`는 이 문제와 무관하게 전부 정상 통과한다는 것(`pnpm turbo run typecheck lint test --filter='!@ongod/admin'` = 17/17 성공). 근본 해결책 후보: (1) `apps/admin`이 `next`를 직접 `dependencies`에 명시해서 강제로 admin 밑에 nest되게 하기, (2) `.npmrc`에 `next`/`@types/react*` 계열만 hoist 안 되게 패턴 지정, (3) ADR-0005 자체를 재검토(hoisted 대신 isolated + `public-hoist-pattern`으로 필요한 것만 선택적 hoist) — 다만 (3)은 Expo/Metro 쪽이 다시 깨질 수 있어 신중히 접근할 것.
 **관련**: [ADR-0005](../decisions/0005-pnpm-hoisted-linker.md), [frontend-log P2-S6](./frontend-log.md#2026-09-01--p2-s6--인증-apple구글-로그인--게스트-모드)
 **상태**: [ ] 미해결
+
+## 2026-09-06 · frontend → backend
+
+**변경**: 없음(코드 변경 아님) — P2-S7-T2(이미지 CDN·WebP 확인) 하다가 발견한 것만 기록.
+**영향**: 앨범 커버 WebP 파일(`album-covers` 버킷)이 Cloudflare CDN을 거치긴 하는데, 응답 헤더가 `cache-control: no-cache`(+ `cf-cache-status: MISS`)라 엣지 캐싱이 사실상 안 먹고 있음 — 매 요청이 오리진(Supabase Storage)까지 감. 앨범 커버는 한 번 올라가면 안 바뀌는 파일이라 길게 캐싱해도 안전할 것 같은데(예: `Cache-Control: public, max-age=31536000, immutable`), 이 값은 업로드 시점에 정해지는 거라 이미 올라간 파일은 재업로드해야 바뀜 — 앨범 커버 업로드하는 파이프라인 코드(Phase 1 어드민 쪽, `album-covers` 버킷에 올리는 스크립트) 쪽에서 `cacheControl` 옵션을 지정하는 게 맞다고 판단해서 내가 직접 안 고치고 여기 남김. 확인: `curl -sI "https://bauchkybtccrclasheqf.supabase.co/storage/v1/object/public/album-covers/<song-id>/cover.webp"`로 재현 가능.
+**관련**: [frontend-log P2-S7](./frontend-log.md#2026-09-06--p2-s7-t1t5--성능안정화)
+**상태**: [ ] 미해결

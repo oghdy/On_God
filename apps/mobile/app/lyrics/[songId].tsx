@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { radius, spacing } from "@ongod/ui-tokens";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -13,6 +13,7 @@ import { Tab, type TabOption } from "../../components/ui/Tab";
 import { Text } from "../../components/ui/Text";
 import { useSong } from "../../hooks/useSong";
 import { useSongLyrics } from "../../hooks/useSongLyrics";
+import { track } from "../../lib/analytics/track";
 import { theme } from "../../lib/theme";
 
 const TAB_OPTIONS: TabOption[] = [
@@ -45,6 +46,17 @@ export default function LyricsScreen() {
 
   const isPending = songQuery.isPending || lyricsQuery.isPending;
   const isError = songQuery.isError || lyricsQuery.isError;
+  const song = songQuery.data;
+  const lyrics = lyricsQuery.data;
+
+  useEffect(() => {
+    if (song) {
+      track({
+        name: "lyrics_viewed",
+        properties: { songId: song.id, tab: activeTab === "original" ? "original" : "translation" },
+      });
+    }
+  }, [song, activeTab]);
 
   if (isPending) return <LoadingView />;
   if (isError) {
@@ -60,9 +72,6 @@ export default function LyricsScreen() {
     );
   }
 
-  const song = songQuery.data;
-  const lyrics = lyricsQuery.data;
-
   if (!song) return <EmptyView message="곡 정보를 찾을 수 없어요." />;
 
   const bodyText = activeTab === "original" ? lyrics?.originalText : lyrics?.koreanTranslation;
@@ -71,7 +80,13 @@ export default function LyricsScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backButton}>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={12}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="뒤로 가기"
+        >
           <Ionicons name="chevron-back" size={24} color={theme.textPrimary} />
         </Pressable>
         {song.albumCoverThumbnailUrl ? (
@@ -116,7 +131,12 @@ export default function LyricsScreen() {
           ) : null}
 
           {lyrics.sourceUrl ? (
-            <Pressable onPress={() => Linking.openURL(lyrics.sourceUrl!)} style={styles.source}>
+            <Pressable
+              onPress={() => Linking.openURL(lyrics.sourceUrl!)}
+              style={styles.source}
+              accessibilityRole="link"
+              accessibilityLabel={`가사 출처, ${hostnameOf(lyrics.sourceUrl)}`}
+            >
               <Text variant="caption" color={theme.textTertiary}>
                 가사 출처: {hostnameOf(lyrics.sourceUrl)}
               </Text>

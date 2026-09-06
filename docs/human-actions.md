@@ -53,8 +53,8 @@
 - [x] **P2-S6-T0b** 🧑 Google OAuth Client 생성 → Supabase 입력값 전달 (완료 — Web/iOS 클라이언트 ID·secret 전달받아 `.env`에 저장, Supabase Auth Google 프로바이더에도 반영 완료)
 - [x] **P2-S6 후속** 🧑 Supabase Personal Access Token 임시 제공 (완료 — 받은 즉시 Google/Apple 프로바이더 활성화 + `profiles` 자동생성 마이그레이션 적용에 쓰고 버림. 어떤 파일에도 저장 안 함)
 - [x] **P2-S6 후속2** 🧑 Google Cloud Console 리디렉션 URI 재확인 (완료 — 사용자가 정확히 등록함. **실제 원인은 내 쪽 실수였음**: Supabase Auth에 Google 프로바이더를 처음 켤 때 `external_google_client_id`에 Web 클라이언트 ID 대신 iOS 클라이언트 ID를 잘못 넣어놔서, iOS 클라이언트엔 등록 안 된 리디렉션 URI로 요청이 나가 계속 막혔던 것. Web 클라이언트 ID로 다시 고치고 나니 정상 동작 — 아래 로그 참고)
-- [ ] **P2-S7-T3** 🤝 Sentry 계정·프로젝트 생성, DSN 전달
-- [ ] **P2-S7-T4** 🤝 분석 도구(선택) 계정·키 제공
+- [ ] **P2-S7-T3** 🤝 Sentry 계정·프로젝트 생성, DSN 전달 — 코드는 준비됨(DSN 없으면 그냥 안 켜지는 상태로 안전하게 대기 중). [sentry.io](https://sentry.io) 무료 플랜으로 계정 만들고 React Native 프로젝트 생성하면 DSN(`https://...@....ingest.sentry.io/...` 형태) 나옴 — 그거 전달해주면 바로 연결
+- [ ] **P2-S7-T4** 🤝 분석 도구(선택) 계정·키 제공 — 지금은 이벤트가 콘솔 로그로만 남음(코드는 완성). Amplitude/PostHog 등 실제 도구를 붙이고 싶으면 알려주시고, 아니면 지금 상태로도 무방(선택 사항)
 
 ## Phase 3 — Widget & 출시
 

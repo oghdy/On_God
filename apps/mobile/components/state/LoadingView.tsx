@@ -4,7 +4,7 @@ import { theme } from "../../lib/theme";
 
 export function LoadingView() {
   return (
-    <View style={styles.container}>
+    <View style={styles.container} accessibilityRole="progressbar" accessibilityLabel="불러오는 중">
       <ActivityIndicator size="large" color={theme.accent} />
     </View>
   );

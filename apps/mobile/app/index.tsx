@@ -1,4 +1,5 @@
 import { toKstDateString } from "@ongod/core";
+import { useEffect, useRef } from "react";
 import { FlatList, View, useWindowDimensions } from "react-native";
 
 import { DailyCard } from "../components/daily-card/DailyCard";
@@ -6,6 +7,8 @@ import { EmptyView } from "../components/state/EmptyView";
 import { ErrorView } from "../components/state/ErrorView";
 import { LoadingView } from "../components/state/LoadingView";
 import { useRecentPicks } from "../hooks/useRecentPicks";
+import { track } from "../lib/analytics/track";
+import { markContentVisible } from "../lib/perf/timing";
 import type { PickWithSong } from "../lib/supabase/mapPick";
 
 interface Page {
@@ -20,17 +23,31 @@ interface Page {
 export default function TodayScreen() {
   const { width } = useWindowDimensions();
   const { data, isPending, isError, error, refetch } = useRecentPicks();
+  const loggedRef = useRef(false);
+
+  const picks = data ?? [];
+  const today = toKstDateString();
+  const hasTodayPick = picks[0]?.dailyPick.pickDate === today;
+  const firstPick = hasTodayPick ? picks[0] : undefined;
+
+  useEffect(() => {
+    if (!isPending && !loggedRef.current) {
+      loggedRef.current = true;
+      markContentVisible("today-screen-first-content");
+      if (firstPick) {
+        track({
+          name: "daily_card_viewed",
+          properties: { songId: firstPick.song.id, pickDate: firstPick.dailyPick.pickDate },
+        });
+      }
+    }
+  }, [isPending, firstPick]);
 
   if (isPending) return <LoadingView />;
   if (isError) {
     return <ErrorView message={error instanceof Error ? error.message : undefined} onRetry={() => refetch()} />;
   }
-
-  const picks = data ?? [];
   if (picks.length === 0) return <EmptyView />;
-
-  const today = toKstDateString();
-  const hasTodayPick = picks[0]?.dailyPick.pickDate === today;
 
   const pages: Page[] = hasTodayPick
     ? picks.map((pick) => ({ key: pick.dailyPick.id, pick }))

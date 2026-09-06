@@ -30,7 +30,11 @@ export const dark: ColorTheme = {
   border: "#2A2A2E",
   textPrimary: "#F5F5F0",
   textSecondary: "#A3A3A8",
-  textTertiary: "#6E6E73",
+  /** P2-S7-T5: 원래 #6E6E73(대비 3.88:1)이 WCAG AA 본문 텍스트 기준(4.5:1) 미달이라
+   * #84848A(5.29:1)로 올림 — "번역 노트"/"가사 출처" 같은 실제로 읽는 캡션에 쓰이기 때문. */
+  textTertiary: "#84848A",
+  /** 대비 기준 예외 대상(비활성 상태 표시 전용 — WCAG 1.4.3의 inactive UI 예외에 해당,
+   * 실제 읽는 텍스트에는 쓰지 않는다). */
   textDisabled: "#4B4B4F",
   accent: "#E3B341",
   accentText: "#1A1400",
