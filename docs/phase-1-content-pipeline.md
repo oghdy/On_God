@@ -91,6 +91,7 @@
   *실제 DB row 확인: 한국어 번역·`ai_model_used`·`scripture_reference`·곡 소개 전부 정확히 저장됨*
 - [x] 🤖 **P1-S4-T5** — 앨범커버 Storage 복사·WebP 변환·위젯용 축소 (**ADR-0003**) ([로그](./logs/backend-log.md#2026-08-29--p1-s4-t5-p1-s4-t8--앨범커버-storage-복사--위젯용-썸네일))
   *실제 검증: 새로 등록한 곡의 YouTube 썸네일을 다운로드→WebP 변환→Storage 업로드까지 실행, 공개 URL로 실제 접근·content-type 확인(메인 600×600 WebP 19.5KB, 위젯용 150×150 WebP 3.5KB)*
+  *2026-09-07 후속: 업로드에 `cacheControl: "31536000"`(1년) 추가 — 미지정 시 Supabase 기본값 `max-age=3600`이었음(SRS 4.2) ([로그](./logs/backend-log.md#2026-09-07--p1-s4-t5-후속--앨범커버-storage-업로드-cachecontrol-지정)). **기존 파일 백필은 미실시**(사람 확인 대기)*
 - [x] 🤖 **P1-S4-T6** — 파이프라인 비동기 실행, 진행상태 추적 ([로그](./logs/backend-log.md#2026-08-29--p1-s4-t1t7--곡-등록--오케스트레이터))
   *Supabase Edge Function 대신 Next.js `after()` 사용 — 이유는 로그 참고. 브라우저로 실제 검증: 폼 제출 즉시 진행상황 페이지로 이동, 3초 간격 자동 새로고침*
 - [x] 🤖 **P1-S4-T7** — `pipeline_runs` 단계별 상태 갱신 (**ADR-0002**) ([로그](./logs/backend-log.md#2026-08-29--p1-s4-t1t7--곡-등록--오케스트레이터))

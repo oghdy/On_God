@@ -15,6 +15,19 @@ const BUCKET = "album-covers";
 const MAIN_SIZE = 600;
 const THUMBNAIL_SIZE = 150;
 
+// Supabase Storage는 업로드 시점의 `cacheControl`을 그대로 오브젝트의 `Cache-Control`
+// 응답 헤더로 내보내고, 그 앞단의 Cloudflare CDN이 이 값을 보고 엣지 캐싱 여부를 정한다.
+// 지정하지 않으면 기본값이 `no-cache`라서 CDN을 거치기만 하고 실제 캐싱은 안 돼 매 요청이
+// 오리진까지 간다(SRS 4.2 "앨범 커버 이미지: CDN 캐싱 적용" 미충족).
+//
+// 1년으로 길게 잡아도 안전한 이유: 업로드 경로가 `{songId}/cover.webp`인데 songId는
+// 파이프라인 실행마다 새로 insert되는 곡의 UUID라, 한 번 쓰인 경로에 다른 이미지가
+// 덮어써지는 일이 사실상 없다(`upsert: true`는 같은 실행이 중간에 재시도될 때를 위한 방어).
+// 나중에 "기존 곡의 커버만 다시 받아오기" 같은 재처리 경로를 추가한다면, 이 값을 줄이지
+// 말고 경로에 버전 세그먼트를 넣어(`{songId}/cover-{hash}.webp`) URL 자체를 바꿔야 한다 —
+// 이미 배포된 CDN 캐시는 만료 전까지 무효화할 방법이 없기 때문.
+const CACHE_CONTROL_SECONDS = "31536000"; // 1년
+
 export interface AlbumCoverResult {
   albumCoverUrl: string;
   albumCoverThumbnailUrl: string;
@@ -59,8 +72,20 @@ export async function copyAlbumCoverToStorage(songId: string, sourceUrl: string)
   const thumbnailPath = `${songId}/thumbnail.webp`;
 
   const [mainUpload, thumbnailUpload] = await Promise.all([
-    db.storage.from(BUCKET).upload(mainPath, mainWebp, { contentType: "image/webp", upsert: true }),
-    db.storage.from(BUCKET).upload(thumbnailPath, thumbnailWebp, { contentType: "image/webp", upsert: true }),
+    db.storage
+      .from(BUCKET)
+      .upload(mainPath, mainWebp, {
+        contentType: "image/webp",
+        cacheControl: CACHE_CONTROL_SECONDS,
+        upsert: true,
+      }),
+    db.storage
+      .from(BUCKET)
+      .upload(thumbnailPath, thumbnailWebp, {
+        contentType: "image/webp",
+        cacheControl: CACHE_CONTROL_SECONDS,
+        upsert: true,
+      }),
   ]);
 
   if (mainUpload.error) throw new Error(`Storage 업로드 실패(메인): ${mainUpload.error.message}`);

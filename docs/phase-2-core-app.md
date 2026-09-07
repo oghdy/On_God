@@ -100,7 +100,7 @@
 ### Task
 
 - [x] 🤖 **P2-S7-T1** — 오늘 카드 2초 이내 검증·최적화 — 실측 297~384ms(계측 로직 자체 오버헤드 포함), 목표(2000ms) 대비 크게 여유 있어 별도 최적화 안 함
-- [x] 🤖 **P2-S7-T2** — 이미지 CDN·WebP 적용 확인 — WebP 포맷·Cloudflare CDN 경유 확인됨. `cache-control: no-cache`라 엣지 캐싱은 실질적으로 비활성 상태인 걸 발견 — backend 쪽 Storage 업로드 스크립트 수정 필요(`handoff.md` 참고)
+- [x] 🤖 **P2-S7-T2** — 이미지 CDN·WebP 적용 확인 — WebP 포맷·Cloudflare CDN 경유 확인됨. **2026-09-07 backend 후속·정정**: `cache-control: no-cache`는 HEAD(`curl -I`) 응답에서만 나오는 값이고, GET으로 받으면 원래 `public, max-age=3600` + `cf-cache-status: HIT`이었음(엣지 캐싱은 켜져 있었고 다만 1시간). 업로드 코드에 `cacheControl`을 지정해 1년으로 늘림 ([로그](./logs/backend-log.md#2026-09-07--p1-s4-t5-후속--앨범커버-storage-업로드-cachecontrol-지정))
 - [x] 🤝 **P2-S7-T3** — 크래시 리포팅 (Sentry 등) — SDK 통합 완료(`@sentry/react-native`, DSN 없으면 안전하게 건너뜀). *당신: Sentry 계정·프로젝트 생성, DSN 전달 — 아직 대기 중(`human-actions.md`)*
 - [x] 🤝 **P2-S7-T4** — 기본 분석 이벤트 — 이벤트 코드 완료(`daily_card_viewed`/`lyrics_viewed`/`streaming_link_opened`/`login_*`/`logout`, 지금은 콘솔 로그). *분석 도구는 선택 사항 — 원하시면 알려주세요, 아니면 이대로도 무방*
 - [x] 🤖 **P2-S7-T5** — 접근성 기초 (폰트 스케일·대비·스크린리더) — 폰트 스케일은 RN 기본값(변경 안 함)이라 시스템 설정 그대로 반영됨. 대비: `textTertiary`가 WCAG AA 미달(3.88:1)이던 걸 발견해 수정(5.29:1) + 회귀 테스트 추가. 스크린리더: 모든 인터랙티브 요소(버튼/탭/링크)에 `accessibilityRole`/`accessibilityLabel` 부여

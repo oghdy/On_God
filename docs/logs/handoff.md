@@ -74,7 +74,7 @@
 **변경**: 없음(코드 변경 아님) — P2-S7-T2(이미지 CDN·WebP 확인) 하다가 발견한 것만 기록.
 **영향**: 앨범 커버 WebP 파일(`album-covers` 버킷)이 Cloudflare CDN을 거치긴 하는데, 응답 헤더가 `cache-control: no-cache`(+ `cf-cache-status: MISS`)라 엣지 캐싱이 사실상 안 먹고 있음 — 매 요청이 오리진(Supabase Storage)까지 감. 앨범 커버는 한 번 올라가면 안 바뀌는 파일이라 길게 캐싱해도 안전할 것 같은데(예: `Cache-Control: public, max-age=31536000, immutable`), 이 값은 업로드 시점에 정해지는 거라 이미 올라간 파일은 재업로드해야 바뀜 — 앨범 커버 업로드하는 파이프라인 코드(Phase 1 어드민 쪽, `album-covers` 버킷에 올리는 스크립트) 쪽에서 `cacheControl` 옵션을 지정하는 게 맞다고 판단해서 내가 직접 안 고치고 여기 남김. 확인: `curl -sI "https://bauchkybtccrclasheqf.supabase.co/storage/v1/object/public/album-covers/<song-id>/cover.webp"`로 재현 가능.
 **관련**: [frontend-log P2-S7](./frontend-log.md#2026-09-06--p2-s7-t1t5--성능안정화)
-**상태**: [ ] 미해결
+**상태**: [x] 처리완료 — 백엔드 세션, 2026-09-07. 업로드 코드에 `cacheControl: "31536000"`(1년) 지정함. **다만 진단을 한 가지 정정한다: 엣지 캐싱이 꺼져 있던 게 아니라 1시간이었다.** `curl -sI`(HEAD)는 Supabase Storage가 `no-cache`를 돌려주지만, 같은 URL을 **GET**으로 받으면 `cache-control: public, max-age=3600` + `cf-cache-status: HIT`이 나온다(3600은 `cacheControl` 미지정 시 기본값). 앞으로 Storage 캐시 헤더를 확인할 땐 `curl -s -D - -o /dev/null <url>`(GET)을 쓸 것. **이미 올라간 파일의 백필은 아직 안 했다**(기존 파일 덮어쓰기라 사람 확인 대기) — 기존 파일은 여전히 `max-age=3600`. [backend-log 2026-09-07](./backend-log.md#2026-09-07--p1-s4-t5-후속--앨범커버-storage-업로드-cachecontrol-지정)
 
 ## 2026-09-07 · backend → frontend
 

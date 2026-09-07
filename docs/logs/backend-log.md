@@ -599,3 +599,27 @@
 **막힌 점 / 다음 할 일**:
 - 받은 PAT는 셸 변수로만 썼고 어떤 파일에도 저장하지 않았다. **사람이 대시보드에서 폐기하면 된다**
 - 실제 로그인으로 prod에 `profiles` 행이 자동 생성되는지는 아직 확인 못 함(prod 앱 빌드가 아직 없음) — dev에서는 이미 검증된 트리거이고 정의가 md5까지 동일하므로 동작은 같을 것
+
+## 2026-09-07 · P1-S4-T5 후속 — 앨범커버 Storage 업로드 `cacheControl` 지정
+
+**Task**: [P1-S4-T5](../phase-1-content-pipeline.md#s4-곡-등록--오케스트레이션) (handoff 2026-09-06 대응, SRS 4.2)
+**한 일**: `apps/admin/lib/pipeline/album-cover.ts`의 두 업로드(`cover.webp` / `thumbnail.webp`)에 `cacheControl: "31536000"`(1년)을 지정.
+
+**왜 이렇게**:
+- **handoff의 진단은 절반만 맞았다 — 실제로는 CDN 캐싱이 "꺼져 있던" 게 아니라 "1시간"이었다.** `curl -sI`(HEAD)로 보면 `cache-control: no-cache`가 나오지만, **같은 URL을 GET으로 받으면 `cache-control: public, max-age=3600` + `cf-cache-status: HIT`이 나온다.** Supabase Storage 앞단이 HEAD 요청에만 `no-cache`를 돌려주는 것이라, 헤더 확인은 반드시 `curl -s -D - -o /dev/null <url>`(GET)로 해야 한다. `3600`은 `cacheControl`을 안 줬을 때의 Supabase 기본값이고, 오브젝트 메타데이터(`/object/list` 응답의 `metadata.cacheControl`)로도 교차 확인했다
+- 따라서 이 변경의 실제 효과는 "캐싱 켜기"가 아니라 **1시간 → 1년**이다. 그래도 고칠 값어치는 충분하다 — 앨범커버는 곡별 UUID 경로에 올라가고 한 번 올라가면 안 바뀌는 파일인데 매 시간 오리진까지 재검증할 이유가 없다
+- **1년으로 길게 잡아도 안전한 근거**: 업로드 경로가 `{songId}/cover.webp`인데 `songId`는 파이프라인 실행마다 새로 insert되는 곡의 UUID다(오케스트레이터에 "기존 곡 재처리" 경로가 없음). 즉 한 번 쓰인 경로가 다른 이미지로 덮어써지는 일이 사실상 없다. `upsert: true`는 같은 실행이 중간에 재시도될 때를 위한 방어일 뿐. 이 전제가 깨질 수 있으니 코드에 주석으로 남겼다 — **나중에 "기존 곡 커버만 다시 받아오기" 같은 재처리 기능을 넣는다면 이 값을 줄이지 말고 경로에 버전을 넣어(`{songId}/cover-{hash}.webp`) URL 자체를 바꿔야 한다** (이미 배포된 CDN 캐시는 만료 전까지 무효화할 방법이 없음)
+
+**변경 파일**: `apps/admin/lib/pipeline/album-cover.ts`
+
+**검증**:
+- dev Storage에 임시 프로브 파일을 `cacheControl=31536000`으로 올려 실제 응답 헤더 확인:
+  - `curl -s -D - -o /dev/null .../object/public/album-covers/_cache-probe/probe.webp` → **`cache-control: public, max-age=31536000`, `cf-cache-status: HIT`**
+  - 같은 시점 기존 파일(`cacheControl` 없이 올라간 것) → `cache-control: public, max-age=3600`
+  - 헤더 방식(`cache-control: max-age=...`)과 multipart 폼 필드(`cacheControl=...`) 둘 다 오브젝트 메타데이터에 정상 반영됨을 `/object/list`로 확인
+- 프로브 파일 2개는 검증 후 삭제(`_cache-probe` 프리픽스 비어 있음 확인)
+- `pnpm turbo run typecheck lint test build` 20/20 통과
+
+**막힌 점 / 다음 할 일**:
+- **이미 올라간 파일의 백필은 아직 안 했다.** 헤더는 업로드 시점에 정해지므로 기존 파일들은 여전히 `max-age=3600`이다. 기존 파일을 덮어쓰는 작업이라 사람 확인이 필요해서 남겨뒀다. 다만 실제 값이 `no-cache`가 아니라 `3600`이었던 만큼 급하지 않다 — dev·prod에 곡이 몇 개 없는 지금보다, 콘텐츠가 쌓이기 전에 한 번 돌리는 편이 낫다
+- 참고로 발견한 것: **image transformation 엔드포인트(`/storage/v1/render/image/public/...`)는 오브젝트의 `cacheControl`을 HEAD에서도 그대로 반영한다.** 나중에 앱에서 사이즈별 이미지가 필요해지면(위젯 등) 이 경로도 선택지 — 다만 앱이 쓰는 URL이 바뀌므로 프론트 트랙과 합의 필요
