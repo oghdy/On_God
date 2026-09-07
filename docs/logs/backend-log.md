@@ -572,3 +572,30 @@
 - **링커 전환 시 주의**: hoisted → isolated는 기존 `node_modules`를 둔 채 `pnpm install`하면 pnpm이 기존 flat 트리를 정리하다 사실상 멈춘다(27분간 CPU 0.3초, 무진전 → 강제 종료). `rm -rf node_modules apps/*/node_modules packages/*/node_modules` 후 재설치하니 8초에 끝났다. 다른 세션이 같은 일을 겪으면 기다리지 말고 지우고 다시 깔 것
 - 근본 부채는 남아 있다 — Expo SDK 53+로 올려 저장소 전체를 React 19로 통일하면 `packageExtensions`와 루트 `@types/react` 고정을 걷어낼 수 있다. 지금 안 하는 이유는 순전히 범위(ADR-0006 "남은 부채" 참고)
 - `apps/mobile`에 `react-dom@19.2.8`이 딸려 들어온다는 peer 경고가 있는데(expo-router → react-helmet-async), 이건 이번 변경과 무관하게 원래 있던 것이고 mobile은 `react-dom`을 직접 쓰지 않는다
+
+## 2026-09-07 · P2-S6-T3 후속 — prod DB 마이그레이션 동기화
+
+**Task**: [P2-S6-T3](../phase-2-core-app.md#s6-인증-srs-profiles-applegoogle) (handoff 2026-09-01 대응)
+**한 일**:
+- 사람이 준 임시 Supabase PAT로 Management API를 통해 dev·prod의 `supabase_migrations.schema_migrations`를 조회
+- prod에 빠져 있던 `20260901120000_handle_new_user_profile` 하나를 적용하고 마이그레이션 이력에 등록
+- dev↔prod 스키마 전체 비교로 동기화 검증
+
+**왜 이렇게**:
+- **`supabase db push`를 쓰지 않았다**: 프론트 세션이 경고한 대로 이 머신의 `supabase` CLI 로그인 세션이 다른 계정에 붙어 있을 위험이 있어서, 먼저 받은 PAT로 `GET /v1/projects`를 호출해 **이 토큰이 보는 프로젝트가 `ongod-prod`/`ongod-dev` 두 개뿐**임을 확인한 뒤에야 작업을 시작했다(`mission-talk` 등 무관한 프로젝트는 이 토큰 범위에 없음). 그 다음엔 ref를 명시한 Management API 호출만 써서 "엉뚱한 프로젝트를 건드릴" 경로 자체를 만들지 않았다
+- **`.env`의 DB 비밀번호는 못 씀**: psql 직결도 시도해봤는데(pooler 리전은 `ap-northeast-2`가 맞고 테넌트도 인식됨) `SUPABASE_PROD_DB_PASSWORD`/`SUPABASE_DEV_DB_PASSWORD` 둘 다 `password authentication failed`가 났다. **`.env`의 이 두 값은 현재 유효하지 않다** — 다음에 psql이 필요하면 대시보드에서 비밀번호를 재설정하고 `.env`를 갱신해야 한다
+- **적용 전에 상태를 먼저 확정**: handoff에는 "Phase 1 마이그레이션 3개도 prod에 갔는지 확실치 않다"고 돼 있었는데, 실제로 조회해보니 `lyrics_source_url`/`publish_scheduled_picks`/`album_cover_thumbnail`은 **이미 prod에 적용돼 있었고** 빠진 건 딱 하나였다. 확실하지 않은 상태에서 `db push`로 밀어붙였으면 이미 있는 객체에 `create trigger`가 걸려 중간에 실패했을 수 있다. 적용 직전에 `pg_trigger`/`pg_proc`로 대상 객체가 진짜 없는지도 따로 확인했다(둘 다 0건)
+- **`statements` 컬럼도 채웠다**: dev에는 프론트 세션이 수동 등록하면서 `statements`가 NULL로 들어가 있는데, prod에는 마이그레이션 SQL 원문을 넣어 CLI가 기록하는 형태에 맞췄다
+
+**변경 파일**: 없음(코드 변경 아님 — prod DB 상태만 변경). 적용한 SQL은 기존 `supabase/migrations/20260901120000_handle_new_user_profile.sql`
+
+**검증**:
+- prod `schema_migrations` 9건 = 로컬 `supabase/migrations/` 9개 파일과 일치, dev와도 일치
+- prod에 `public.handle_new_user()` 함수 1건 + `auth.users`의 `on_auth_user_created` 트리거 1건 생성 확인
+- **dev↔prod 스키마 전체 diff**: `public` 스키마의 컬럼·제약·인덱스·RLS 정책·함수 정의(md5)·트리거 정의(md5)·RLS 활성화 여부를 한 번에 뽑아 비교 → **`public` 스키마는 완전히 동일**. 유일한 차이는 `realtime.subscription`의 내부 트리거(dev에만 있음, Supabase Realtime이 만든 것이라 우리 마이그레이션과 무관)
+- `handle_new_user` 함수 정의 md5, `on_auth_user_created` 트리거 정의 md5가 dev/prod 동일
+- pg_cron 잡(`publish-daily-picks-kst-midnight`, `0 15 * * *`, `active=true`)도 양쪽 동일 확인
+
+**막힌 점 / 다음 할 일**:
+- 받은 PAT는 셸 변수로만 썼고 어떤 파일에도 저장하지 않았다. **사람이 대시보드에서 폐기하면 된다**
+- 실제 로그인으로 prod에 `profiles` 행이 자동 생성되는지는 아직 확인 못 함(prod 앱 빌드가 아직 없음) — dev에서는 이미 검증된 트리거이고 정의가 md5까지 동일하므로 동작은 같을 것

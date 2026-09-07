@@ -60,7 +60,7 @@
 **변경**: 새 마이그레이션 `supabase/migrations/20260901120000_handle_new_user_profile.sql` 추가 — `auth.users`에 새 행이 생기면(최초 로그인) `public.profiles`를 자동으로 만들어주는 트리거(`on_auth_user_created` → `handle_new_user()`). P2-S6-T3(로그인 시 profiles 자동 생성) 대응.
 **영향**: ~~아직 dev/prod DB 어디에도 적용 안 됨~~ → **dev DB엔 적용 완료**(사람이 준 임시 PAT로 Management API를 통해 SQL 실행 + `supabase_migrations.schema_migrations`에 버전 등록까지 함, `pg_trigger`로 트리거 존재 확인함). **prod DB엔 아직 미적용** — backend가 prod 배포 때 이 파일도 같이 적용해야 함(로컬 `supabase db push`를 쓸 거라면, 이 머신의 `supabase` CLI 로그인 세션이 OnGod 프로젝트가 아닌 다른 계정/조직에 연결돼 있으니 재로그인 확인 먼저 할 것).
 **관련**: [frontend-log P2-S6](./frontend-log.md#2026-09-01--p2-s6--인증-apple구글-로그인--게스트-모드)
-**상태**: [x] 처리완료(dev만) — 프론트 세션, 2026-09-01. prod 적용은 미해결로 남겨둠.
+**상태**: [x] 처리완료 — 백엔드 세션, 2026-09-07. prod에도 적용 완료(사람이 준 임시 PAT로 Management API 사용, `supabase db push`는 쓰지 않고 ref를 명시한 호출만 사용 — 토큰이 보는 프로젝트가 `ongod-dev`/`ongod-prod` 두 개뿐임을 먼저 확인함). 조회해보니 Phase 1 마이그레이션 3개는 prod에 **이미 적용돼 있었고** 빠진 건 이것 하나였음. dev↔prod `public` 스키마 전체 diff로 동기화 검증까지 완료. 참고: **`.env`의 `SUPABASE_*_DB_PASSWORD` 두 값은 현재 유효하지 않다**(psql 인증 실패) — 자세한 내용은 [backend-log 2026-09-07](./backend-log.md#2026-09-07--p2-s6-t3-후속--prod-db-마이그레이션-동기화)
 
 ## 2026-09-01 · frontend → backend
 

@@ -89,7 +89,7 @@
 - [x] 🧑 **P2-S6-T0b** — **Google 로그인 설정** — 완료(Web/iOS 클라이언트 ID·secret 전달받음, `.env`에 저장, Supabase Auth에 반영 완료)
 - [ ] 🤖 **P2-S6-T1** — Apple 로그인 구현 — 코드 작성 완료(`expo-apple-authentication` 네이티브 플로우), Supabase Auth Apple 프로바이더 활성화 완료(`external_apple_client_id=com.ongod.app`). **라이브 검증은 EAS 빌드 필요**(Expo Go에선 Expo Go 자체 앱 신분으로 인증되어 우리 앱 검증 불가 — [로그](./logs/frontend-log.md#2026-09-01--p2-s6--인증-apple구글-로그인--게스트-모드) 참고)
 - [x] 🤖 **P2-S6-T2** — Google 로그인 구현 — **완료·검증됨**. `redirect_uri_mismatch`의 실제 원인은 Supabase Auth 설정에 Web 대신 iOS 클라이언트 ID를 잘못 넣은 내 실수였음(사람이 등록한 리디렉션 URI는 처음부터 맞았음) — 고치고 나니 실기기에서 앱→Supabase→Google 실제 로그인 폼까지 완전히 도달 확인. 실제 비밀번호 입력(완전한 로그인 완료)은 사용자 본인 계정이라 내가 대신 하지 않음 — 파이프라인 자체는 여기까지 검증으로 충분.
-- [x] 🤖 **P2-S6-T3** — 로그인 시 `profiles` 자동 생성·provider 기록 — **완료**. 마이그레이션(`20260901120000_handle_new_user_profile.sql`)을 dev DB에 적용하고 `pg_trigger`로 트리거 존재까지 확인함
+- [x] 🤖 **P2-S6-T3** — 로그인 시 `profiles` 자동 생성·provider 기록 — **완료**. 마이그레이션(`20260901120000_handle_new_user_profile.sql`)을 dev DB에 적용하고 `pg_trigger`로 트리거 존재까지 확인함. **2026-09-07: prod DB에도 적용 완료** — dev↔prod `public` 스키마 전체 diff로 동기화 검증 ([로그](./logs/backend-log.md#2026-09-07--p2-s6-t3-후속--prod-db-마이그레이션-동기화))
 - [x] 🤖 **P2-S6-T4** — 게스트 모드 (비로그인 열람) — 완료·검증됨(로그인 없이 전체 피드/가사 열람 그대로 동작, 로그인 화면엔 게스트 이용 가능 안내 문구)
 - [x] 🤖 **P2-S6-T5** — 세션 영속·자동 갱신·로그아웃 — `AuthProvider`/`signOut` 구현 완료, 자동 갱신은 P2-S1에서 이미 설정된 것 재사용. Google 파이프라인이 Google 로그인 폼까지 도달함을 확인했으니 세션 저장/갱신 로직 자체는 이미 검증된 anon 클라이언트 설정을 그대로 타므로 구조적으로 문제 없음 — 실제 계정으로 로그인 완료된 세션의 영속은 사용자가 실제로 로그인해본 뒤 최종 확인 권장
 
