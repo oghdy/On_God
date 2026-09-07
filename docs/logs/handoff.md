@@ -85,4 +85,21 @@
 - **`@types/react` 버전을 올릴 일이 생기면 세 곳을 같이 봐야 한다**: `apps/admin/package.json`(19), `pnpm-workspace.yaml`의 `packageExtensions`(19), 루트 `package.json`(18, mobile용). 한 곳만 올리면 이 문제가 그대로 재발한다.
 - 근본 해결은 Expo SDK 53+ 업그레이드로 저장소 전체를 React 19로 통일하는 것이다 — 그때 위 두 장치를 걷어내면 된다. 프론트 트랙이 SDK 업그레이드를 계획하게 되면 이 부채를 같이 정리하는 걸로 잡아주면 좋겠다.
 **관련**: [ADR-0006](../decisions/0006-pnpm-isolated-public-hoist.md), [backend-log 2026-09-07](./backend-log.md#2026-09-07--p0-s6-t6--ongodadmin-타입체크빌드-복구-pnpm-링커-재설계)
+**상태**: [x] 처리완료 — 프론트 세션, 2026-09-07. 지시대로 지우고 재설치(2.9초)한 뒤 `expo start`를 돌렸더니 **앱이 아예 안 떴다** — 이중 React 회귀. 원인은 ADR-0006이 루트 `@types/react`만 18로 고정하고 런타임 `react`를 빠뜨린 것(`shamefully-hoist`가 루트에 admin용 19를 올림 → react를 peer로 선언 안 한 `expo-router`/`expo-modules-core` 등이 그 19를 잡음). 루트 `package.json`에 `react`/`react-dom` 18 고정으로 수정하고 [ADR-0007](../decisions/0007-root-react-runtime-pin.md)로 근거를 남김 — **ADR-0006의 장치를 되돌린 게 아니라 한 줄 더 쓴 것이고, admin은 20/20 그대로다.** 수정 후 Expo Go에서 오늘 카드·스와이프·가사(원문/해석)·로그인 모달 전부 정상, 첫 렌더 372ms(기존 297~384ms 범위). 상세는 [frontend-log 2026-09-07](./frontend-log.md#2026-09-07--p0-s6-t6b--adr-0006-링커-전환-후-모바일-기동-검증--이중-react-회귀-수정). 아래 새 항목 두 개 확인 바람.
+
+## 2026-09-07 · frontend → backend
+
+**변경**: 루트 `package.json`의 `devDependencies`에 `"react": "18.3.1"`, `"react-dom": "18.3.1"` 두 줄을 추가했다([ADR-0007](../decisions/0007-root-react-runtime-pin.md)). ADR-0006이 `@types/react`에 쓴 것과 동일한 장치를 런타임 사본에도 적용한 것 — 링커 설정(`.npmrc`)이나 `packageExtensions`는 **건드리지 않았다.**
+**영향**:
+- **`react` 계열 버전을 올릴 때 봐야 할 곳이 세 곳 → 다섯 곳이 됐다.** ADR-0006 "영향" 절의 세 곳 표는 ADR-0007 표로 갱신됐으니 그쪽을 보면 된다: `apps/admin/package.json`(19) / `pnpm-workspace.yaml` `packageExtensions`(19) / 루트 `@types/react`(18) / **루트 `react`(18)** / **루트 `react-dom`(18)**.
+- admin은 영향 없음을 확인했다 — admin과 next는 각자 선언한 의존성으로 `.pnpm/react@19.2.8/`을 공유해서 잡으므로 루트에 뭐가 올라오든 무관하다. `pnpm turbo run typecheck lint test build --force --concurrency=1` 20/20 통과(`next build` 포함).
+- 참고로 **타입체크·`expo export` 성공은 이 클래스의 회귀를 못 잡는다** — React 사본이 둘이어도 번들링은 정상 성공하고 런타임에만 터진다. 앞으로 `node_modules` 레이아웃을 바꾸면 앱을 실제로 한 번 띄워보거나, ADR-0007에 적어둔 한 줄 검사(루트와 mobile의 `react` 버전 일치)를 쓰는 게 좋겠다.
+**관련**: [ADR-0007](../decisions/0007-root-react-runtime-pin.md), [frontend-log 2026-09-07](./frontend-log.md#2026-09-07--p0-s6-t6b--adr-0006-링커-전환-후-모바일-기동-검증--이중-react-회귀-수정)
+**상태**: [ ] 미해결 (읽고 확인만 해주면 됨 — 조치할 건 없음)
+
+## 2026-09-07 · frontend → backend
+
+**변경**: 없음(코드 변경 아님) — 검증 중 발견한 기존 결함만 기록.
+**영향**: `pnpm turbo run typecheck lint test build`를 **동시 실행하면 `@ongod/admin:typecheck`가 간헐적으로 실패한다.** `apps/admin/tsconfig.json`의 `include`에 `.next/types/**/*.ts`가 들어있는데, 같은 시각 `@ongod/admin:build`(`next build`)가 그 디렉터리를 지웠다 다시 만들면서 `error TS6053: File '.../.next/types/app/layout.ts' not found`가 난다(파일 5~6개에 대해 동시에). 재현·격리 결과: `--concurrency=1`이면 20/20 통과, `build`를 뺀 `typecheck lint test`만이면 19/19 통과, 넷을 동시에 돌리면 실패 — 즉 **내 의존성 변경과 무관한 기존 레이스**이고, 백엔드 세션이 본 20/20은 레이스를 이긴 결과로 보인다. CI가 이 명령을 쓰고 있다면 지금도 간헐적으로 빨간불이 날 것. 고치는 방향은 두 가지: (1) `turbo.json`에서 admin `typecheck`가 `build`에 `dependsOn`하게 해서 순서를 강제, (2) `.next/types`를 `include`에서 빼기(다만 Next의 타입 라우트 검증을 잃음). admin/Next 소관이라 판단해서 진단만 남기고 손대지 않았다.
+**관련**: [frontend-log 2026-09-07](./frontend-log.md#2026-09-07--p0-s6-t6b--adr-0006-링커-전환-후-모바일-기동-검증--이중-react-회귀-수정)
 **상태**: [ ] 미해결

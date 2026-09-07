@@ -4,6 +4,7 @@
 - 일자: 2026-09-07
 - 대체 대상: [ADR-0005 — pnpm `node-linker=hoisted`](./0005-pnpm-hoisted-linker.md) (superseded by this ADR)
 - 관련: [handoff 2026-09-01 frontend → backend](../logs/handoff.md), [backend-log 2026-09-07](../logs/backend-log.md)
+- **보정: [ADR-0007 — 루트 `react`/`react-dom` 런타임 사본도 18로 고정](./0007-root-react-runtime-pin.md)** — 이 ADR은 루트 `@types/react`만 18로 고정하고 **런타임 `react`는 빠뜨렸다.** 그 결과 루트에 React 19가 올라와 `expo-router`/`expo-modules-core` 등이 19를 잡으면서 모바일 앱이 렌더 자체를 못 하는 회귀가 났다. 아래 "세 곳" 표는 ADR-0007에서 **다섯 곳**으로 갱신됐다.
 
 ## 배경
 

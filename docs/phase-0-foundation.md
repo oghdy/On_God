@@ -141,6 +141,7 @@ apps/admin  ─┼─▶ integrations ─▶ db ─▶ core ◀── (core는 �
   *나: `apps/admin/vercel.json` + 환경변수 키 목록([`secrets-policy.md`](../secrets-policy.md)) 준비 완료 / 당신: Vercel에 GitHub 레포 연결, 환경변수 값 입력*
 - [x] 🤖 **P0-S6-T5** — 브랜치 전략·커밋 컨벤션 문서화 ([`docs/branching-and-commits.md`](../branching-and-commits.md))
 - [x] 🤖 **P0-S6-T6** — CI 복구: `@ongod/admin` 타입체크·빌드 실패 해결 (pnpm 링커 재설계, **ADR-0006**) ([로그](./logs/backend-log.md#2026-09-07--p0-s6-t6--ongodadmin-타입체크빌드-복구-pnpm-링커-재설계))
+- [x] 🤖 **P0-S6-T6b** — ADR-0006 회귀 수정: 루트 `react`/`react-dom`을 18로 고정해 모바일 이중 React 해소 (**ADR-0007**) ([로그](./logs/frontend-log.md#2026-09-07--p0-s6-t6b--adr-0006-링커-전환-후-모바일-기동-검증--이중-react-회귀-수정))
   *React 18(mobile)/19(admin) 공존 + hoisted 링커 조합이 원인. `pnpm turbo run typecheck lint test build` 20/20 통과로 검증, `apps/mobile`은 실제 Metro 번들 생성(`expo export`)으로 무결성 확인*
 
 > GitHub 연동은 P0-S2 이전에 이미 완료됨 — `origin` → `github.com/oghdy/On_God`, `main`에 push까지 됨.

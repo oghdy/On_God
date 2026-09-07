@@ -242,3 +242,28 @@
 **막힌 점 / 다음 할 일**:
 - 계정이 개인(`doyis`)과 팀(`doyiss-team`) 두 개가 있어서 개인 계정으로 진행함 — 나중에 팀으로 옮기고 싶다면 말씀해달라고 안내 필요.
 - 이제 실제 `eas build --profile development --platform ios`로 개발 빌드를 만들 수 있는 상태 — 이건 Apple Developer 인증(빌드 서명)이 필요할 수 있어 사람 확인 후 진행하는 게 안전. 다음 세션에서 빌드 진행 여부 확인 필요.
+
+## 2026-09-07 · P0-S6-T6b — ADR-0006 링커 전환 후 모바일 기동 검증 + 이중 React 회귀 수정
+
+**Task**: [P0-S6-T6b](../phase-0-foundation.md#s6-cicd-기초) — backend가 [handoff](./handoff.md)로 넘긴 "링커 바꿨으니 `expo start` 한 번 돌려봐 달라" 요청 처리
+**한 일**:
+- 지시대로 `rm -rf node_modules apps/*/node_modules packages/*/node_modules && pnpm install` (2.9초) 후 `expo start` → **앱이 화면을 아예 못 그리고 에러 오버레이만 떴다.** `Objects are not valid as a React child (found: object with keys {$$typeof, type, key, props, _owner, _store})` — 한 번들에 React 인스턴스가 둘일 때 나는 증상.
+- Metro dev 번들(`?dev=true&minify=false`)을 직접 받아 모듈 경로를 세어보니 `react@18.3.1`과 **`react@19.2.8`이 같이** 들어있었고, 19를 물고 있는 게 `expo-router`(거의 전 모듈)·`expo-modules-core`·`@expo/vector-icons`·`expo-apple-authentication`·`@expo/metro-runtime`(= 에러 오버레이 자신, 그래서 에러를 못 보여주고 자기가 또 죽었다)이었다.
+- 원인: ADR-0006이 루트 호이스팅될 `@types/react`만 18로 고정하고 **런타임 `react`는 고정하지 않아서**, `shamefully-hoist`가 루트 `node_modules/react`에 admin용 19를 올림. react를 peerDependency로 선언 안 한 expo 계열 패키지들이 위로 걸어 올라가 그 19를 잡았다. `react-native` 본체와 앱 코드는 18을 쓰니 렌더러와 엘리먼트 생성 쪽이 갈라짐.
+- 수정: 루트 `package.json` `devDependencies`에 `"react": "18.3.1"`, `"react-dom": "18.3.1"` 추가 — ADR-0006이 `@types/react`에 쓴 것과 **완전히 같은 장치**를 런타임 사본에도 적용. `react-dom`까지 넣은 건 `react`만 고정하면 루트 `react-dom`이 19로 남아 매 설치마다 peer 불일치 경고가 뜨기 때문(지금 mobile 번들에 `react-dom`은 0개라 실피해는 없지만 루트를 일관되게 유지).
+- [ADR-0007](../decisions/0007-root-react-runtime-pin.md) 작성, ADR-0006 상단에 보정 포인터 추가, OVERVIEW ADR 목록 갱신.
+**왜 이렇게**:
+- 시뮬레이터 화면만 보고 추측하지 않고 **번들 산출물을 직접 받아 모듈 경로를 셌다.** "이중 React 같다"는 심증에서 "정확히 이 패키지들이 19를 잡는다"는 물증으로 넘어가야 수정이 한 번에 끝나고, 무엇보다 *어떤 종류의 수정이 맞는지*(패키지별 땜질 vs 루트 버전 고정)가 그 목록을 봐야 결정됨.
+- 링커 설정은 원래 backend 트랙 소관이라 넘길까 했는데, (a) 깨진 것이 mobile 기동이라 내 트랙 문제고 (b) 수정이 ADR-0006이 이미 채택한 장치를 한 줄 더 쓰는 것뿐이라 새 구조 결정이 아니며 (c) 저장소를 앱이 안 켜지는 상태로 두고 넘기는 게 더 나쁘다고 판단해서 직접 고치고 ADR로 근거를 남겼다. admin 쪽 코드는 손대지 않음.
+**변경 파일**: `package.json`(루트, `react`/`react-dom` 18 고정), `pnpm-lock.yaml`, `docs/decisions/0007-root-react-runtime-pin.md`(신규), `docs/decisions/0006-pnpm-isolated-public-hoist.md`(보정 포인터), `docs/OVERVIEW.md`, `docs/phase-0-foundation.md`, `docs/logs/handoff.md`
+**검증**:
+- 번들 실측: 수정 전 `react@19.2.8` 모듈 4개 + `react@18.3.1` 공존 → 수정 후 **`react@18.3.1` 하나만**, `react-dom` 0개.
+- iOS 시뮬레이터(Expo Go, iPhone 16 Pro) 실제 확인: 에러 오버레이 사라짐. 오늘의 카드(제목·소개·Fraunces/Inter 폰트·YouTube 버튼) · 스와이프로 최근 픽 이동 · 가사 화면 진입 · 원문↔해석 탭 전환 · 뒤로가기 · 로그인 모달(Apple 네이티브 버튼 + Google 버튼 + 게스트 안내) 전부 정상. 콘솔 에러 0건(남은 건 DSN 없을 때 나오는 기존 Sentry 경고뿐).
+- `[perf] today-screen-first-content: 372ms` — P2-S7-T1이 기록한 297~384ms 범위로 복귀.
+- `pnpm turbo run typecheck lint test build --force --concurrency=1` **20/20 통과**(admin `next build` 포함).
+- **오늘 픽이 없어 첫 화면이 빈 카드로 뜨는 건 정상 동작이다** — dev DB의 `daily_picks`에 2026-08-29 한 건만 있고 오늘(2026-09-07) 건이 없음. `app/index.tsx`가 오늘 픽이 없으면 안내 카드를 맨 앞에 끼우는 P2-S3-T5 설계대로이며, 스와이프하면 실제 카드가 나온다(확인함). 데이터 로딩 실패가 아님.
+**막힌 점 / 다음 할 일**:
+- **`react` 계열 버전을 올릴 때 봐야 할 곳이 세 곳 → 다섯 곳이 됐다**(ADR-0007 표 참고). backend에도 handoff로 남김.
+- **`pnpm turbo run typecheck lint test build`를 동시 실행하면 `@ongod/admin:typecheck`가 간헐 실패한다** — 내 변경과 무관한 기존 레이스: admin `tsconfig.json`의 `include`가 `.next/types/**/*.ts`인데 같은 시각 `next build`가 그 디렉터리를 지웠다 다시 만들어서 `error TS6053: File '.next/types/app/layout.ts' not found`가 난다. `--concurrency=1`이면 20/20, `build` 없이 `typecheck lint test`만이면 19/19로 항상 통과함을 확인. backend가 20/20을 봤던 건 레이스를 이긴 것. admin/Next 소관이라 안 고치고 handoff로 넘김(고치려면 turbo `dependsOn`으로 admin typecheck를 build 뒤로 보내거나, `.next/types`를 include에서 빼는 방향).
+- `npx expo export`로 이중 React를 검사하려던 방법은 **폐기**했다(ADR-0007에 이유 기록) — 기본은 Hermes 바이트코드라 grep 불가, `--no-bytecode`도 minify로 경로가 사라져 이중 React가 있어도 조용히 통과한다. 대신 "루트와 mobile의 `react` 버전이 같은지" 한 줄 검사를 CI 후보로 남김.
+- Phase 2는 그대로 완료 상태. 다음은 Phase 3(위젯) 또는 EAS 개발 빌드(Apple 로그인·앱 스킴 라이브 검증).
