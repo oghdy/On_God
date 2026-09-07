@@ -5,3 +5,15 @@ packages:
 onlyBuiltDependencies:
   - esbuild
   - sharp
+
+# next는 @types/react를 peerDependencies로도 선언하지 않아서, next 자신의 .d.ts가 하는
+# `import ... from "react"`가 어디서 호이스팅된 @types/react를 잡느냐에 따라 타입이 결정된다.
+# 이 저장소는 React 18(mobile)과 19(admin)이 공존하므로 그 "어디서"가 mobile 쪽 18로 잡히면
+# admin 타입체크가 깨졌다(ADR-0006). 여기서 next에 직접 의존성을 주입해, next는 항상 자기
+# 옆(node_modules/.pnpm/next@.../node_modules/)의 React 19 타입만 보게 고정한다.
+# 버전은 apps/admin/package.json의 @types/react·@types/react-dom과 반드시 같이 올려야 한다.
+packageExtensions:
+  next:
+    dependencies:
+      "@types/react": "19.1.17"
+      "@types/react-dom": "19.1.9"

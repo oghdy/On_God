@@ -13,6 +13,7 @@
     "test": "turbo run test"
   },
   "devDependencies": {
+    "@types/react": "18.3.31",
     "turbo": "^2.3.0",
     "typescript": "^5.7.0"
   }

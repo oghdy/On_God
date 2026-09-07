@@ -1,8 +1,15 @@
 # ADR-0005 — pnpm `node-linker=hoisted` (Expo/Metro 호환)
 
-- 상태: 채택(Accepted)
+- 상태: **대체됨(Superseded by [ADR-0006](./0006-pnpm-isolated-public-hoist.md))** — 2026-09-07
+- 원래 상태: 채택(Accepted)
 - 일자: 2026-09-01
 - 관련: [handoff 2026-09-01 frontend → backend](../logs/handoff.md), [frontend-log P2-S1-T1~T6](../logs/frontend-log.md)
+
+> **왜 대체됐나**: 아래 "영향"에서 "admin은 영향이 적을 것으로 예상했고 ... 전체가 모두
+> 통과함을 확인했다"고 적었지만, 그 확인은 turbo 캐시 히트였다. 실제로는 `node-linker=hoisted`가
+> 루트 `node_modules`에 React를 한 버전만 둘 수 있게 만들어 `apps/admin`(React 19)의 타입체크와
+> `next build`를 모두 깨뜨렸다. Expo/Metro 대응이라는 목적 자체는 유효하며, ADR-0006이 같은 목적을
+> `shamefully-hoist`로 달성하면서 링커는 기본(isolated)으로 되돌린다. 이 문서는 기록으로 남긴다.
 
 ## 배경
 

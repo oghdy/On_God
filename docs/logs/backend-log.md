@@ -538,3 +538,37 @@
 **막힌 점 / 다음 할 일**: 없음. 이제 Phase 1에서 진짜 사람만 할 수 있는 일은 P1-S5-T6(콘텐츠 검수, 지속 운영)만 남음. `AuthKey_7345NTF2MW.p8` 원본 파일은 프로젝트 루트에 그대로 있음(`.gitignore`로 커밋은 안 되지만, 원한다면 다운로드 폴더 등 저장소 밖으로 옮겨서 백업해도 됨 — 키 내용은 이미 `.env.local`에 반영돼서 그 파일이 없어도 동작에는 지장 없음).
 
 <!-- 아래에 새 로그 항목을 계속 추가한다 -->
+
+## 2026-09-07 · P0-S6-T6 — `@ongod/admin` 타입체크·빌드 복구 (pnpm 링커 재설계)
+
+**Task**: [P0-S6-T6](../phase-0-foundation.md#s6-cicd-기초) (이번 세션에서 추가한 전술적 Task — handoff 2026-09-01 대응)
+**한 일**:
+- `.npmrc`를 `node-linker=hoisted`(ADR-0005) → 기본(isolated) 링커 + `shamefully-hoist=true`로 교체
+- `pnpm-workspace.yaml`에 `packageExtensions`로 `next`에 `@types/react@19.1.17` / `@types/react-dom@19.1.9` 주입
+- 루트 `package.json`의 `devDependencies`에 `@types/react@18.3.31` 추가(루트로 호이스팅될 버전을 mobile용 18로 못 박기 위한 것 — 루트에서 React를 쓰지는 않는다)
+- [ADR-0006](../decisions/0006-pnpm-isolated-public-hoist.md) 작성, ADR-0005를 superseded 표시(삭제하지 않음)
+
+**왜 이렇게**:
+- **증상이 handoff에 적힌 것보다 하나 더 있었다.** 타입체크 실패(프론트 세션이 넘긴 것) 외에 `next build`도 `[TypeError: Cannot read properties of null (reading 'useRef')]`로 prerender 단계에서 깨져 있었다. 둘 다 뿌리는 같다 — hoisted 레이아웃의 루트 `node_modules`에는 React가 한 버전만 존재할 수 있는데, `next`(admin 전용)까지 루트로 호이스팅되는 바람에 next가 mobile의 React 18을 잡았다. 런타임 쪽은 `node_modules/next/node_modules/react`(19.2.8)와 `apps/admin/node_modules/react`(19.2.8)가 **같은 버전인데 물리적으로 다른 사본** 두 개가 되어 훅 디스패처가 갈라진 것
+- **진단 방법을 기록해둔다** (다음에 비슷한 의존성 문제가 나면 이 두 가지로 바로 확인 가능):
+  - 타입: `npx tsc --noEmit --explainFiles`로 어떤 파일이 어느 `@types/react`를 끌어오는지 경로째로 볼 수 있다(`--listFiles`는 목록만). 이걸로 "next의 `.d.ts`가 루트 18을 import한다"는 걸 추측이 아니라 사실로 확정했다
+  - 런타임: `node -e "require.resolve('react/package.json', {paths:['<디렉터리>']})"`로 각 지점에서 실제로 어떤 물리 경로의 React가 잡히는지 확인
+- **`tsconfig.json`의 `paths`로 고치는 안을 실제로 시도했다가 버렸다**: 타입체크는 깨끗하게 통과했지만(`@types/react` 사본이 3개→1개로 줄어드는 것까지 확인), **Next.js가 tsconfig의 `paths`를 그대로 webpack alias로 옮기기 때문에** `react`가 `@types/react` 디렉터리로 alias되어 `next build`의 prerender가 죽었다. tsconfig 하나로는 "타입 해석"과 "번들 해석"을 다르게 만들 수 없다는 게 결론. 프론트 세션이 시도했던 `typeRoots` 단독 안도 재현해봤는데 에러가 2개→9개로 늘어서(`<form action={fn}>`이 `string`에 할당 안 된다는 것들) 역시 아니었다
+- **`node-linker`를 되돌린 이유**: ADR-0005가 hoisted 링커로 얻으려던 효과는 사실 "Expo/Metro의 깊은 `require()`가 `apps/mobile`에서 보이게 하는 것" 하나뿐이었고, 그건 `shamefully-hoist=true`(루트 공개 호이스팅)만으로 충분하다. isolated 링커를 유지하면 pnpm이 peer 조합별로 `.pnpm/<pkg>@<ver>_<peer해시>/`를 만들어주므로 next와 admin이 **같은 하나의** React 19 인스턴스를 공유하게 된다 — 링커를 바꾸지 않고 tsconfig만 만졌다면 런타임 문제는 절대 못 고쳤을 것
+- **루트 `@types/react` 고정이 필요했던 이유**: isolated로 바꾼 뒤 admin은 통과했지만 이번엔 mobile이 `TS2786: 'Ionicons' cannot be used as a JSX component`로 깨졌다. `shamefully-hoist`가 루트로 올리는 `@types/react`도 결국 한 버전뿐이고 pnpm이 19를 골랐기 때문. `react-native`/`@expo/vector-icons`의 `.d.ts`가 이걸 잡으므로 루트는 18이어야 한다. 루트 워크스페이스의 직접 의존성은 항상 루트 `node_modules`를 차지한다는 성질을 이용해 못 박았다
+- **대칭성 확인**: 반대로 루트를 19로 올려도 봤는데(admin 통과 / mobile 실패), flat 슬롯이 하나뿐인 이상 어느 쪽으로 뒤집어도 반대쪽이 깨진다는 걸 실측으로 확인했다. 그래서 "루트 슬롯 경쟁" 자체를 없애는 방향(isolated + 대상별 주입)으로 간 것
+
+**변경 파일**: `.npmrc`, `pnpm-workspace.yaml`, `package.json`(루트), `pnpm-lock.yaml`, `docs/decisions/0006-pnpm-isolated-public-hoist.md`(신규), `docs/decisions/0005-pnpm-hoisted-linker.md`(superseded 표시)
+
+**검증**:
+- `pnpm turbo run typecheck lint test build` → **20/20 성공** (admin 포함, `--filter` 회피 없음). 이전 상태에서는 `@ongod/admin:typecheck`와 `@ongod/admin:build`가 둘 다 실패
+- `apps/mobile` 무결성:
+  - `pnpm --filter @ongod/mobile typecheck` 통과
+  - **`npx expo export --platform ios`로 실제 Metro 번들 생성 성공**(Hermes 4.97MB) — ADR-0005가 지키려던 Expo/Metro 동작이 안 깨졌음을 타입체크가 아니라 실제 번들링으로 확인
+  - ADR-0005가 인용한 두 실패 모듈이 `apps/mobile` 기준으로 해석되는지 직접 확인: `metro/src/lib/TerminalReporter` ✅, `@babel/runtime/helpers/interopRequireDefault` ✅
+- React 인스턴스 단일화 확인: `next`와 `apps/admin` 둘 다 `.pnpm/react@19.2.8/`의 **같은 경로**를 잡고, `apps/mobile`은 `.pnpm/react@18.3.1/`을 잡는다
+
+**막힌 점 / 다음 할 일**:
+- **링커 전환 시 주의**: hoisted → isolated는 기존 `node_modules`를 둔 채 `pnpm install`하면 pnpm이 기존 flat 트리를 정리하다 사실상 멈춘다(27분간 CPU 0.3초, 무진전 → 강제 종료). `rm -rf node_modules apps/*/node_modules packages/*/node_modules` 후 재설치하니 8초에 끝났다. 다른 세션이 같은 일을 겪으면 기다리지 말고 지우고 다시 깔 것
+- 근본 부채는 남아 있다 — Expo SDK 53+로 올려 저장소 전체를 React 19로 통일하면 `packageExtensions`와 루트 `@types/react` 고정을 걷어낼 수 있다. 지금 안 하는 이유는 순전히 범위(ADR-0006 "남은 부채" 참고)
+- `apps/mobile`에 `react-dom@19.2.8`이 딸려 들어온다는 peer 경고가 있는데(expo-router → react-helmet-async), 이건 이번 변경과 무관하게 원래 있던 것이고 mobile은 `react-dom`을 직접 쓰지 않는다

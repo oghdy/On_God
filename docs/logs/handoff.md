@@ -53,7 +53,7 @@
 3. `apps/mobile`의 `react-native`를 `0.76.5`→`0.76.9`로 올렸다(`expo install --fix`가 SDK 52 호환 버전으로 정렬).
 **영향**: (1)은 하위호환이라 admin 쪽 코드 변경 불필요. (2)는 저장소 전체 `node_modules` 레이아웃이 바뀌는 변경이라 admin도 영향권 — 변경 후 `pnpm turbo run typecheck lint test`(admin 포함 7개 워크스페이스)가 모두 통과함은 확인했지만, pnpm의 엄격한 격리(phantom dependency 방지)가 전역적으로 느슨해진 것은 알아둬야 함. 다음에 backend 세션이 새 패키지를 설치하다 이상하게 동작하면 이 변경을 의심할 것. CI 캐시 관련 첫 실행이 느려질 수 있음(레이아웃 변경으로 캐시 무효화).
 **관련**: [ADR-0005](../decisions/0005-pnpm-hoisted-linker.md), [frontend-log P2-S1-T1~T6](./frontend-log.md#2026-09-01--p2-s1-t1t6--expo-router-골격--supabase-연결--데이터-레이어)
-**상태**: [ ] 미해결
+**상태**: [x] 처리완료 — 백엔드 세션, 2026-09-07. (1) `createAnonClient`의 선택적 `options` 인자는 하위호환이라 admin 쪽 변경 없이 그대로 두면 됨. (2) `.npmrc`의 `node-linker=hoisted`는 실제로 admin을 깨뜨리고 있었고(아래 항목 참고) [ADR-0006](../decisions/0006-pnpm-isolated-public-hoist.md)으로 대체함 — Expo/Metro 대응 목적은 `shamefully-hoist=true`로 그대로 유지. (3) `react-native` 0.76.9 정렬은 그대로 유지. 자세한 내용은 [backend-log 2026-09-07](./backend-log.md#2026-09-07--p0-s6-t6--ongodadmin-타입체크빌드-복구-pnpm-링커-재설계)
 
 ## 2026-09-01 · frontend → backend
 
@@ -67,11 +67,22 @@
 **변경**: `pnpm turbo run typecheck lint test` 전체 실행 중 `@ongod/admin:typecheck`가 실패하는 걸 발견함 — `app/layout.tsx`, `app/(admin)/layout.tsx` 등에서 `ReactNode`/`ReactPortal` 타입 불일치, `<form action={서버액션함수}>`가 `string`에 할당 안 된다는 에러. **admin 코드 자체의 버그가 아니라 pnpm 의존성 레이아웃 문제로 보인다**: `next` 패키지가 루트(`node_modules/next`)에 완전히 호이스팅되는데, admin은 React 19(`apps/admin/node_modules/@types/react@19.1.17`)를 쓰고 루트에는 mobile이 쓰는 React 18(`node_modules/@types/react@18.3.31`)이 호이스팅돼 있어서, next의 내부 타입 참조가 admin 것이 아니라 루트의(18.x) `@types/react`를 잡아버리는 것으로 추정 — 서로 다른 `ReactNode` 정의 두 개가 한 컴파일에 섞이는 전형적인 증상(참고: `Type 'bigint' is not assignable to type 'ReactNode'`처럼 React 19 전용 타입이 걸리는 에러가 같이 나옴).
 **영향**: **이건 지금 막 생긴 문제가 아니라 P2-S1의 `node-linker=hoisted` 전환(ADR-0005) 이후 계속 잠재해있었을 가능성이 높다** — turbo 캐시가 `admin:typecheck`를 계속 캐시 히트로 넘겨서 실제로 재실행된 적이 없다가, 이번에 `apps/mobile`에 새 패키지(`expo-web-browser` 등)를 여럿 설치하면서 캐시가 무효화돼 처음으로 다시 실행되며 드러난 것으로 보인다. 대충 손댄 해결책(`apps/admin/tsconfig.json`에 `typeRoots` 제한)을 시도해봤는데 에러 모양만 바뀌고 완전히 해결되지는 않아서(next 자체의 호이스팅 위치 문제라 admin의 tsconfig만으로는 근본 해결이 안 됨) **되돌렸다** — admin/Next.js 쪽은 backend 트랙 소관이라 어설프게 고치기보다 정확히 진단만 남겨둔다. 확실한 건 `apps/mobile`/`packages/*`는 이 문제와 무관하게 전부 정상 통과한다는 것(`pnpm turbo run typecheck lint test --filter='!@ongod/admin'` = 17/17 성공). 근본 해결책 후보: (1) `apps/admin`이 `next`를 직접 `dependencies`에 명시해서 강제로 admin 밑에 nest되게 하기, (2) `.npmrc`에 `next`/`@types/react*` 계열만 hoist 안 되게 패턴 지정, (3) ADR-0005 자체를 재검토(hoisted 대신 isolated + `public-hoist-pattern`으로 필요한 것만 선택적 hoist) — 다만 (3)은 Expo/Metro 쪽이 다시 깨질 수 있어 신중히 접근할 것.
 **관련**: [ADR-0005](../decisions/0005-pnpm-hoisted-linker.md), [frontend-log P2-S6](./frontend-log.md#2026-09-01--p2-s6--인증-apple구글-로그인--게스트-모드)
-**상태**: [ ] 미해결
+**상태**: [x] 처리완료 — 백엔드 세션, 2026-09-07. 진단이 정확했음(호이스팅된 `next`가 루트의 React 18 타입을 잡는 문제). 다만 **증상이 하나 더 있었다** — `next build`도 `Cannot read properties of null (reading 'useRef')`로 깨져 있었음(next와 admin이 서로 다른 물리 사본의 React 19를 잡아 훅 디스패처가 갈라짐). 제안된 후보 중 (1)(admin에 `next` 명시)은 이미 돼 있어 무효였고, (2)/(3)에 해당하는 방향으로 해결: 링커를 기본(isolated)+`shamefully-hoist`로 되돌리고 `packageExtensions`로 `next`에만 React 19 타입을 주입 → [ADR-0006](../decisions/0006-pnpm-isolated-public-hoist.md). `pnpm turbo run typecheck lint test build` **20/20 통과**(admin 포함, `--filter` 회피 없음). [backend-log 2026-09-07](./backend-log.md#2026-09-07--p0-s6-t6--ongodadmin-타입체크빌드-복구-pnpm-링커-재설계)
 
 ## 2026-09-06 · frontend → backend
 
 **변경**: 없음(코드 변경 아님) — P2-S7-T2(이미지 CDN·WebP 확인) 하다가 발견한 것만 기록.
 **영향**: 앨범 커버 WebP 파일(`album-covers` 버킷)이 Cloudflare CDN을 거치긴 하는데, 응답 헤더가 `cache-control: no-cache`(+ `cf-cache-status: MISS`)라 엣지 캐싱이 사실상 안 먹고 있음 — 매 요청이 오리진(Supabase Storage)까지 감. 앨범 커버는 한 번 올라가면 안 바뀌는 파일이라 길게 캐싱해도 안전할 것 같은데(예: `Cache-Control: public, max-age=31536000, immutable`), 이 값은 업로드 시점에 정해지는 거라 이미 올라간 파일은 재업로드해야 바뀜 — 앨범 커버 업로드하는 파이프라인 코드(Phase 1 어드민 쪽, `album-covers` 버킷에 올리는 스크립트) 쪽에서 `cacheControl` 옵션을 지정하는 게 맞다고 판단해서 내가 직접 안 고치고 여기 남김. 확인: `curl -sI "https://bauchkybtccrclasheqf.supabase.co/storage/v1/object/public/album-covers/<song-id>/cover.webp"`로 재현 가능.
 **관련**: [frontend-log P2-S7](./frontend-log.md#2026-09-06--p2-s7-t1t5--성능안정화)
+**상태**: [ ] 미해결
+
+## 2026-09-07 · backend → frontend
+
+**변경**: pnpm 링커 설정을 바꿨다 — `.npmrc`가 `node-linker=hoisted`(ADR-0005) → 기본(isolated) 링커 + `shamefully-hoist=true`([ADR-0006](../decisions/0006-pnpm-isolated-public-hoist.md)). 함께 `pnpm-workspace.yaml`에 `packageExtensions`(next에 React 19 타입 주입)와 루트 `package.json`에 `@types/react@18.3.31`(루트 호이스팅 버전을 mobile용 18로 고정)이 추가됐다. `apps/mobile`의 코드/의존성 버전은 **하나도 안 건드렸다.**
+**영향**:
+- **다음에 `git pull` 하면 반드시 `node_modules`를 지우고 다시 설치할 것.** hoisted → isolated 전환을 기존 `node_modules`를 둔 채 `pnpm install`로 하면 pnpm이 옛 flat 트리를 정리하다 사실상 멈춘다(실제로 27분간 무진전 → 강제 종료함). `rm -rf node_modules apps/*/node_modules packages/*/node_modules && pnpm install` 하면 8초에 끝난다.
+- 동작상 mobile에 영향이 없음은 확인했다: `pnpm --filter @ongod/mobile typecheck` 통과, **`npx expo export --platform ios`로 실제 Metro 번들 생성 성공**(Hermes 4.97MB), ADR-0005가 인용한 두 딥 require(`metro/src/lib/TerminalReporter`, `@babel/runtime/helpers/interopRequireDefault`)도 `apps/mobile` 기준으로 정상 해석됨. 그래도 다음 프론트 세션 시작 시 `expo start`를 한 번 돌려 실기기/Expo Go 쪽도 이상 없는지 봐주면 좋겠다.
+- **`@types/react` 버전을 올릴 일이 생기면 세 곳을 같이 봐야 한다**: `apps/admin/package.json`(19), `pnpm-workspace.yaml`의 `packageExtensions`(19), 루트 `package.json`(18, mobile용). 한 곳만 올리면 이 문제가 그대로 재발한다.
+- 근본 해결은 Expo SDK 53+ 업그레이드로 저장소 전체를 React 19로 통일하는 것이다 — 그때 위 두 장치를 걷어내면 된다. 프론트 트랙이 SDK 업그레이드를 계획하게 되면 이 부채를 같이 정리하는 걸로 잡아주면 좋겠다.
+**관련**: [ADR-0006](../decisions/0006-pnpm-isolated-public-hoist.md), [backend-log 2026-09-07](./backend-log.md#2026-09-07--p0-s6-t6--ongodadmin-타입체크빌드-복구-pnpm-링커-재설계)
 **상태**: [ ] 미해결
