@@ -8,13 +8,13 @@
 ## 진행 체크리스트
 
 - [x] S1. 어드민 앱 기반
-- [ ] S2. 외부 API 어댑터 실연동 (Apple Music 키 대기, Spotify 보류)
+- [x] S2. 외부 API 어댑터 실연동 (Spotify만 보류 — 필수 아님)
+  *2026-09-08 정정: 'Apple Music 키 대기'는 낡은 표기였다. 키는 2026-09-05에 반영됐고 2026-09-08에 실제 파이프라인 경유로 `apple-music: ok` + 진짜 앨범 아트까지 확인했다. 이 표기 때문에 'Apple Music 키가 없어 콘텐츠가 안 채워진다'는 오진이 한 번 돌았다.*
 - [x] S3. AI 가사 해석 파이프라인
 - [x] S4. 곡 등록 & 오케스트레이션
 - [ ] S5. 검수 UI (T6 실제 콘텐츠 검수는 지속 운영 업무)
 - [x] S6. 예약 발행 시스템
 - [x] S7. 어드민 대시보드
-- [ ] S7. 어드민 대시보드
 
 ---
 
@@ -126,6 +126,7 @@
 - [x] 🤖 **P1-S6-T2** — pick_date UNIQUE 충돌·빈 날짜 경고 ([로그](./logs/backend-log.md#2026-08-29--p1-s6-t1t7--예약-발행-시스템))
   *앞으로 14일 중 비어있는 날짜를 화면 상단에 경고로 표시. DB의 UNIQUE 제약(23505)을 한글 에러 메시지로 변환*
 - [x] 🤖 **P1-S6-T3** — Scheduled 발행 (cron, KST 자정) ([로그](./logs/backend-log.md#2026-08-29--p1-s6-t1t7--예약-발행-시스템))
+  *2026-09-08 후속 검증: `cron.job_run_details`로 **dev 10일치·prod 5일치 실행 이력 전부 `succeeded`** 확인 — UTC 15:00 = KST 00:00에 한 번도 거르지 않고 실행됨([로그](./logs/backend-log.md#2026-09-08--p1-s6-t3-후속--시크릿-정책-정정--cron-실제-동작-확인-db-비밀번호-소재-정정))*
   *Edge Function 대신 pg_cron + DB 함수로 구현(이유는 로그 참고). 실제로 dev·prod 둘 다 `pg_cron` extension 설치하고 cron job 등록·활성화까지 완료(`active: true`)*
 - [x] 🤖 **P1-S6-T4** — cron 로직: scheduled → published, published_at 기록 ([로그](./logs/backend-log.md#2026-08-29--p1-s6-t1t7--예약-발행-시스템))
   *함수를 직접 호출해 실제 발행 전이 확인: status가 published로 바뀌고 published_at이 정확히 기록됨*

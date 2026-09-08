@@ -20,8 +20,24 @@
 | Supabase anon key | `.env`의 `SUPABASE_*_ANON_KEY` | 불필요(공개 가능 값) | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `EXPO_PUBLIC_SUPABASE_ANON_KEY` |
 | Supabase service_role key | `.env`의 `SUPABASE_*_SERVICE_ROLE_KEY` | `supabase secrets set` | Vercel 환경변수(접두사 없이, 서버 전용) | **등록 안 함** — 모바일 앱은 service_role을 쓸 일이 없다 |
 | Apple/Spotify/YouTube/Genius/Anthropic API 키 | `.env` | `supabase secrets set` | Vercel 환경변수(접두사 없이) | **등록 안 함** — 파이프라인은 어드민/Edge Function에서만 실행 |
-| DB 비밀번호 (direct connection) | `/tmp/ongod_{dev,prod}_dbpw.txt` (의도적으로 `.env`에 평문 저장 안 함, [backend-log](./logs/backend-log.md#2026-08-28--p0-s2-t1t8--supabase-devprod-프로젝트-생성-및-스키마-적용) 참고) | 불필요 | 불필요 | 불필요 |
+| DB 비밀번호 (direct connection) | ⚠️ **현재 확보된 값이 없다** — 아래 주석 참고 | 불필요 | 불필요 | 불필요 |
 | 운영자 이메일 allowlist (`ADMIN_EMAILS`) | `apps/admin/.env.local` | 불필요 | Vercel 환경변수(접두사 없이) | 불필요 — 모바일엔 어드민 개념 자체가 없다 |
+
+> ⚠️ **DB 비밀번호 관련 정정 (2026-09-08)** — 이 표는 원래 DB 비밀번호를 `/tmp/ongod_{dev,prod}_dbpw.txt`에
+> 둔다고 적고 있었는데, 확인해보니 **두 파일 다 존재하지 않는다.** `/tmp`는 macOS가 주기적으로(재부팅 포함)
+> 비우는 경로라 애초에 secret을 보관할 곳이 아니었다 — "의도적으로 `.env`에 안 넣었다"는 결정 자체는 옳았지만
+> 대체 보관처 선택이 틀렸다.
+>
+> 한편 루트 `.env`에는 `SUPABASE_DEV_DB_PASSWORD`/`SUPABASE_PROD_DB_PASSWORD` 키가 **값과 함께 들어있는데,
+> 이 값들로는 실제 인증이 안 된다**(2026-09-07 세션에서 pooler 접속을 시도해 `password authentication failed`
+> 확인. 리전 `ap-northeast-2`와 테넌트 인식은 정상이었으므로 비밀번호만 틀린 것). 즉 이 표의 서술과 `.env`의
+> 실제 내용이 서로 어긋난 채 방치돼 있었다.
+>
+> **지금 당장 문제는 없다.** DB 비밀번호가 필요한 건 psql 직접 접속과 `supabase db push`뿐인데, 지금까지의
+> 모든 스키마 작업은 Management API(임시 PAT) 또는 service_role 키로 처리해왔고 앞으로도 그걸로 충분하다.
+> **직접 접속이 필요해지면** 그때 대시보드에서 비밀번호를 재설정하고(Project Settings → Database → Reset
+> database password) `.env`의 두 값을 갱신하면 된다 — `.env`는 gitignore되므로 거기 두는 게 사라지는
+> `/tmp`보다 낫다.
 
 > `apps/admin`은 루트 `.env`를 직접 읽지 않는다 — Next.js는 앱 자신의 디렉터리(`apps/admin/.env.local`)에서 env를 읽으므로, 루트 `.env`의 `SUPABASE_DEV_*`/`SUPABASE_PROD_*` 값을 그때그때 `apps/admin/.env.local`의 `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY`로 옮겨 넣어야 한다 (값 이름이 바뀐다, 값 자체는 같다). Vercel에선 Preview 환경변수에 dev 값을, Production 환경변수에 prod 값을 이 이름 그대로 등록하면 된다. 스키마는 `apps/admin/lib/env.ts`(클라이언트 노출 가능한 것)와 `apps/admin/lib/env.server.ts`(`server-only`로 감싼 서버 전용 값)로 나뉜다 — P1-S1-T1/T4 참고.
 
