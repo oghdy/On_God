@@ -22,8 +22,18 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # React 사본이 두 개면 모바일 앱이 화면을 못 그린다(ADR-0007). 타입체크·빌드는
+      # 둘 다 통과시키고 런타임에만 터지는 회귀라 별도 검사가 필요하다.
+      - name: React 단일 사본 검사
+        run: node scripts/check-single-react.mjs
+
       - run: pnpm lint
 
       - run: pnpm typecheck
 
       - run: pnpm test
+
+      # build를 typecheck와 같은 스텝에서 동시에 돌리면 next build가 .next/types를
+      # 지웠다 다시 만드는 동안 admin typecheck가 TS6053으로 깨진다. 스텝을 나눠
+      # 순차 실행하는 것으로 그 레이스를 피한다.
+      - run: pnpm build
