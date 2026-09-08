@@ -142,6 +142,7 @@ apps/admin  ─┼─▶ integrations ─▶ db ─▶ core ◀── (core는 �
 - [x] 🤖 **P0-S6-T5** — 브랜치 전략·커밋 컨벤션 문서화 ([`docs/branching-and-commits.md`](../branching-and-commits.md))
 - [x] 🤖 **P0-S6-T6** — CI 복구: `@ongod/admin` 타입체크·빌드 실패 해결 (pnpm 링커 재설계, **ADR-0006**) ([로그](./logs/backend-log.md#2026-09-07--p0-s6-t6--ongodadmin-타입체크빌드-복구-pnpm-링커-재설계))
 - [x] 🤖 **P0-S6-T6b** — ADR-0006 회귀 수정: 루트 `react`/`react-dom`을 18로 고정해 모바일 이중 React 해소 (**ADR-0007**) ([로그](./logs/frontend-log.md#2026-09-07--p0-s6-t6b--adr-0006-링커-전환-후-모바일-기동-검증--이중-react-회귀-수정))
+- [x] 🤖 **P0-S6-T6c** — 이중 React 회귀 방지 검사(`scripts/check-single-react.mjs`)를 CI에 추가 + CI에 빠져 있던 `build` 스텝 보강 + Android 에뮬레이터 종단 검증 ([로그](./logs/frontend-log.md#2026-09-07--p0-s6-t6c--이중-react-회귀-방지-검사-ci-추가--android-검증))
   *React 18(mobile)/19(admin) 공존 + hoisted 링커 조합이 원인. `pnpm turbo run typecheck lint test build` 20/20 통과로 검증, `apps/mobile`은 실제 Metro 번들 생성(`expo export`)으로 무결성 확인*
 
 > GitHub 연동은 P0-S2 이전에 이미 완료됨 — `origin` → `github.com/oghdy/On_God`, `main`에 push까지 됨.

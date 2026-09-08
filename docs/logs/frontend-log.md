@@ -267,3 +267,24 @@
 - **`pnpm turbo run typecheck lint test build`를 동시 실행하면 `@ongod/admin:typecheck`가 간헐 실패한다** — 내 변경과 무관한 기존 레이스: admin `tsconfig.json`의 `include`가 `.next/types/**/*.ts`인데 같은 시각 `next build`가 그 디렉터리를 지웠다 다시 만들어서 `error TS6053: File '.next/types/app/layout.ts' not found`가 난다. `--concurrency=1`이면 20/20, `build` 없이 `typecheck lint test`만이면 19/19로 항상 통과함을 확인. backend가 20/20을 봤던 건 레이스를 이긴 것. admin/Next 소관이라 안 고치고 handoff로 넘김(고치려면 turbo `dependsOn`으로 admin typecheck를 build 뒤로 보내거나, `.next/types`를 include에서 빼는 방향).
 - `npx expo export`로 이중 React를 검사하려던 방법은 **폐기**했다(ADR-0007에 이유 기록) — 기본은 Hermes 바이트코드라 grep 불가, `--no-bytecode`도 minify로 경로가 사라져 이중 React가 있어도 조용히 통과한다. 대신 "루트와 mobile의 `react` 버전이 같은지" 한 줄 검사를 CI 후보로 남김.
 - Phase 2는 그대로 완료 상태. 다음은 Phase 3(위젯) 또는 EAS 개발 빌드(Apple 로그인·앱 스킴 라이브 검증).
+
+## 2026-09-07 · P0-S6-T6c — 이중 React 회귀 방지 검사 CI 추가 + Android 검증
+
+**Task**: [P0-S6-T6c](../phase-0-foundation.md#s6-cicd-기초) — P0-S6-T6b 후속(재발 방지 + 남은 검증 구멍 메우기)
+**한 일**:
+- `scripts/check-single-react.mjs` 신규 + `.github/workflows/ci.yml`에 스텝 추가. apps/mobile이 보는 react를 기준으로 삼고, ADR-0007에서 실제로 React 19를 집어왔던 패키지들(`expo-router`, `expo-modules-core`, `@expo/metro-runtime`, `@expo/vector-icons`, `expo-apple-authentication`, `react-native`, `expo`)이 각자 위치에서 react를 어떻게 해석하는지 Node 해석 규칙으로 확인한다.
+- CI에 `pnpm build` 스텝도 추가. ADR-0006이 고쳤던 `next build` 깨짐(증상 2)을 기존 CI가 전혀 못 잡고 있었다.
+- **Android 검증**(P0-S6-T6b에서 "장비 없음"으로 남겨뒀던 항목) — 실제로는 Android Studio·SDK·에뮬레이터·AVD 2개가 모두 갖춰져 있었다. `~/Library/Android/sdk`의 명령어들이 PATH에 없었을 뿐인데 미설치로 넘겨짚은 내 오판이었다. Pixel 2 / API 35 에뮬레이터로 종단 검증함.
+**왜 이렇게**:
+- **검사가 실제로 실패하는지를 양방향으로 확인했다.** 통과만 확인하고 넣으면 "절대 안 울리는 경보기"를 다는 것과 같다. 루트 `react` 핀을 일시적으로 제거해 ADR-0007 이전 상태를 재현했더니 exit 1로 실패하며 문제의 다섯 패키지를 정확히 지목했고(내가 번들을 손으로 뒤져 찾아낸 목록과 동일), 되돌린 뒤 다시 통과했다.
+- 검사를 `pnpm install` **직후** 스텝에 뒀다 — lint/typecheck/test가 다 통과해버리는 종류의 문제라 뒤에 두면 늦고, 원인이 의존성 레이아웃이라 설치 직후가 가장 정확한 시점이다.
+- CI `build`를 `typecheck`와 **별도 스텝**으로 뒀다 — 같은 turbo 실행에 넣으면 `next build`가 `.next/types`를 지웠다 만드는 동안 admin typecheck가 `TS6053`으로 깨진다(P0-S6-T6b에서 발견한 레이스). 스텝을 나누면 순차 실행이라 레이스 자체가 성립하지 않는다. env 없이도 `next build`가 되는 것을 격리된 환경(`env -i`)에서 확인하고 넣었다.
+**변경 파일**: `scripts/check-single-react.mjs`(신규), `.github/workflows/ci.yml`
+**검증**:
+- 검사 양방향: 정상 상태 → `✓ React 사본 1개 (react@18.3.1)` exit 0 / 루트 핀 제거 재현 → exit 1 + 다섯 패키지 지목. 확인 후 `package.json`·`pnpm-lock.yaml` 원상복구(`git diff` 없음).
+- CI 순서 그대로 로컬 재현: React 검사 → lint → typecheck → test → build 전부 통과.
+- **Android(Pixel 2 / API 35 에뮬레이터, Expo Go)**: Metro Android 번들 React 사본 **1개**(`react@18.3.1`, `react-dom` 0개) — iOS와 동일. 앱 실제 기동해서 오늘 카드(제목·소개·Fraunces/Inter 폰트·YouTube 버튼·프로필 아이콘) · 스와이프 · 가사 화면 진입 전부 정상. 콘솔 에러 0건(기존 Sentry DSN 경고만). `[perf] today-screen-first-content: 1030ms`, `[analytics] lyrics_viewed` 정상 기록.
+**막힌 점 / 다음 할 일**:
+- Android 첫 렌더 1030ms는 iOS(372ms)보다 느리지만 SRS 4.2 목표(2000ms) 안이고, 에뮬레이터 + 콜드 스타트 조건이라 그대로 둠. 실기기 측정은 사람 몫.
+- Android는 Expo Go로만 확인했다 — 스트리밍 앱 스킴(`youtube://` 등)의 Android 패키지 가시성(`<queries>`, P2-S5 로그 참고)은 여전히 미검증. EAS 개발 빌드 이후 과제.
+- 남은 것: admin typecheck `.next/types` 레이스(로컬 한정, backend 트랙), React 18/19 공존 부채(Expo SDK 53+ 업그레이드로 해소).

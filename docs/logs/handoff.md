@@ -93,7 +93,8 @@
 **영향**:
 - **`react` 계열 버전을 올릴 때 봐야 할 곳이 세 곳 → 다섯 곳이 됐다.** ADR-0006 "영향" 절의 세 곳 표는 ADR-0007 표로 갱신됐으니 그쪽을 보면 된다: `apps/admin/package.json`(19) / `pnpm-workspace.yaml` `packageExtensions`(19) / 루트 `@types/react`(18) / **루트 `react`(18)** / **루트 `react-dom`(18)**.
 - admin은 영향 없음을 확인했다 — admin과 next는 각자 선언한 의존성으로 `.pnpm/react@19.2.8/`을 공유해서 잡으므로 루트에 뭐가 올라오든 무관하다. `pnpm turbo run typecheck lint test build --force --concurrency=1` 20/20 통과(`next build` 포함).
-- 참고로 **타입체크·`expo export` 성공은 이 클래스의 회귀를 못 잡는다** — React 사본이 둘이어도 번들링은 정상 성공하고 런타임에만 터진다. 앞으로 `node_modules` 레이아웃을 바꾸면 앱을 실제로 한 번 띄워보거나, ADR-0007에 적어둔 한 줄 검사(루트와 mobile의 `react` 버전 일치)를 쓰는 게 좋겠다.
+- 참고로 **타입체크·`expo export` 성공은 이 클래스의 회귀를 못 잡는다** — React 사본이 둘이어도 번들링은 정상 성공하고 런타임에만 터진다.
+- **재발 방지 검사를 CI에 넣어뒀다**(P0-S6-T6c): `scripts/check-single-react.mjs`가 `pnpm install` 직후 스텝으로 돌면서 expo 계열 패키지들이 mobile과 같은 react 사본을 잡는지 확인한다. 루트 핀을 제거해 사고 상태를 재현했을 때 실제로 exit 1로 실패하는 것까지 확인했으니, 앞으로 링커나 의존성 레이아웃을 건드려도 이 사고는 CI에서 잡힌다.
 **관련**: [ADR-0007](../decisions/0007-root-react-runtime-pin.md), [frontend-log 2026-09-07](./frontend-log.md#2026-09-07--p0-s6-t6b--adr-0006-링커-전환-후-모바일-기동-검증--이중-react-회귀-수정)
 **상태**: [ ] 미해결 (읽고 확인만 해주면 됨 — 조치할 건 없음)
 
@@ -101,5 +102,6 @@
 
 **변경**: 없음(코드 변경 아님) — 검증 중 발견한 기존 결함만 기록.
 **영향**: `pnpm turbo run typecheck lint test build`를 **동시 실행하면 `@ongod/admin:typecheck`가 간헐적으로 실패한다.** `apps/admin/tsconfig.json`의 `include`에 `.next/types/**/*.ts`가 들어있는데, 같은 시각 `@ongod/admin:build`(`next build`)가 그 디렉터리를 지웠다 다시 만들면서 `error TS6053: File '.../.next/types/app/layout.ts' not found`가 난다(파일 5~6개에 대해 동시에). 재현·격리 결과: `--concurrency=1`이면 20/20 통과, `build`를 뺀 `typecheck lint test`만이면 19/19 통과, 넷을 동시에 돌리면 실패 — 즉 **내 의존성 변경과 무관한 기존 레이스**이고, 백엔드 세션이 본 20/20은 레이스를 이긴 결과로 보인다. **CI는 영향 없음을 확인했다** — `.github/workflows/ci.yml`은 `pnpm lint`/`pnpm typecheck`/`pnpm test`를 각각 별도 스텝으로 돌리므로 typecheck와 build가 겹치지 않는다. 즉 이 레이스는 로컬에서 네 개를 한 번에 돌릴 때만 터진다. **다만 그 반대급부로 CI는 `build`를 아예 안 돌린다** — ADR-0006이 고쳤던 증상 2(`next build`가 `Cannot read properties of null (reading 'useRef')`로 깨지던 것)는 지금 CI가 잡아주지 못한다는 뜻이라, 레이스를 고치는 김에 CI에 build 스텝을 넣는 것도 같이 검토해주면 좋겠다. 고치는 방향은 두 가지: (1) `turbo.json`에서 admin `typecheck`가 `build`에 `dependsOn`하게 해서 순서를 강제, (2) `.next/types`를 `include`에서 빼기(다만 Next의 타입 라우트 검증을 잃음). admin/Next 소관이라 판단해서 진단만 남기고 손대지 않았다.
-**관련**: [frontend-log 2026-09-07](./frontend-log.md#2026-09-07--p0-s6-t6b--adr-0006-링커-전환-후-모바일-기동-검증--이중-react-회귀-수정)
-**상태**: [ ] 미해결
+**후속(2026-09-07, 프론트 세션)**: **CI에 `pnpm build` 스텝을 추가했다** — `typecheck`와 별도 스텝이라 순차 실행되므로 레이스가 성립하지 않고, 동시에 ADR-0006이 고쳤던 `next build` 깨짐도 이제 CI가 잡는다(env 없이 빌드되는 것 확인함). **즉 CI 쪽 구멍은 메워졌고, 남은 건 로컬에서 `pnpm turbo run typecheck lint test build`를 한 번에 돌릴 때 나는 레이스뿐이다.** 이건 여전히 admin `tsconfig.json`/`turbo.json` 소관이라 backend가 판단해주면 된다(급하지 않음 — 로컬에선 `--concurrency=1`로 우회 가능).
+**관련**: [frontend-log 2026-09-07](./frontend-log.md#2026-09-07--p0-s6-t6b--adr-0006-링커-전환-후-모바일-기동-검증--이중-react-회귀-수정), [frontend-log P0-S6-T6c](./frontend-log.md#2026-09-07--p0-s6-t6c--이중-react-회귀-방지-검사-ci-추가--android-검증)
+**상태**: [ ] 미해결 (우선순위 낮음 — CI는 이미 안전)
