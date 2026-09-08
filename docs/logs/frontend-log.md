@@ -317,3 +317,19 @@
 - **TypeScript 6.0**은 미적용(위 "왜 이렇게" 참고) — 저장소 전체 영향이라 backend와 합의 후 별도 Task로.
 - **`react-native-web`**은 넣지 않았다(SDK 57 템플릿엔 있음). 웹 타깃이 아니라 필요할 때 추가.
 - 이제 Phase 3(위젯) 착수 조건이 갖춰졌다 — `expo prebuild`로 네이티브 프로젝트를 생성해도 최신 RN 기준이라 나중에 재조정할 일이 없다. 🧑 실기기 Expo Go 테스트도 이제 가능(App Store 최신 Expo Go = SDK 57).
+
+## 2026-09-08 · P0-S6-T1 후속 — 푸시 후 발견: CI가 계속 실패하고 있었음 (3단 원인)
+
+**Task**: [P0-S6-T1](../phase-0-foundation.md#s6-cicd-기초) 후속 — P0-S7 푸시 직후 CI 결과를 확인하다 발견
+**한 일**: P0-S7을 푸시하고 CI를 확인해보니 **내 커밋 이전부터 이미 빨간불**이었다(확인 가능한 가장 오래된 실패는 2026-09-07 커밋들). 원인이 세 겹이라 하나씩 벗겨냈다.
+1. **pnpm 설치 단계에서 즉사** — `pnpm/action-setup@v4`의 `with.version: 10`과 루트 `package.json`의 `packageManager: "pnpm@10.15.0"`가 중복 지정돼 액션이 `Multiple versions of pnpm specified`로 거부. 11초 만에 죽어서 **lint/typecheck/test는 물론 P0-S6-T6c에서 넣은 React 단일 사본 검사와 build 스텝도 한 번도 실행된 적이 없었다.** 워크플로에서 `version`을 빼고 `packageManager`를 진실 공급원으로 삼음.
+2. **admin build가 env 검증에서 실패** — `NEXT_PUBLIC_SUPABASE_URL: Required`. 워크플로 build 스텝에 형식만 맞는 가짜 플레이스홀더 env를 지정해 해결.
+3. **플레이스홀더를 넣었는데도 서버 env만 계속 실패** — `SUPABASE_SERVICE_ROLE_KEY: Required`. **turbo가 선언하지 않은 환경변수를 태스크에 넘기지 않는 것**이 원인. `NEXT_PUBLIC_*`는 Next.js 프레임워크 감지로 자동 통과해서 2번이 해결됐던 것이고, 서버 전용 값은 `turbo.json`의 `build.env`에 명시해야 했다.
+**왜 이렇게**:
+- **플레이스홀더를 쓴 이유**: 이 스텝의 목적은 "빌드가 끝까지 통과하는가"(ADR-0006이 고쳤던 `next build` 깨짐 회귀 감시)이지 실제 Supabase 접속이 아니다. 진짜 값을 GitHub Secrets에 넣는 건 사람 몫이고 그럴 필요도 없다 — 실제 배포 빌드는 Vercel이 진짜 값으로 수행한다(P0-S6-T4).
+- `turbo.json`에 env를 명시하면 그 값들이 **캐시 키에도 반영**돼, 설정이 다른 빌드가 캐시를 잘못 재사용하는 것도 함께 막힌다. 부수적으로 얻는 이득.
+**변경 파일**: `.github/workflows/ci.yml`, `turbo.json`, `docs/logs/handoff.md`(정정)
+**검증**: CI **전 스텝 success** — install → React 단일 사본 검사 → lint → typecheck → test → build. 로컬에서도 `apps/admin/.env.local`을 실제로 치우고 turbo를 거쳐(`pnpm build --force`) 플레이스홀더만으로 빌드 성공 확인.
+**막힌 점 / 다음 할 일**:
+- **내 검증이 틀렸던 것을 정정한다.** P0-S6-T6c에서 build 스텝을 넣을 때 "env 없이도 빌드된다"고 판단했는데, 로컬 검증을 `env -i`로 **셸 환경만** 비우고 했다. Next.js가 디스크의 `apps/admin/.env.local`을 자동으로 읽고 있어서 통과한 것이었다. `handoff.md`의 해당 문장도 정정해뒀다. 교훈: **env 관련 검증은 셸 환경만이 아니라 파일까지 실제로 치우고 해야 한다.**
+- 이 건으로 P0-S6-T6c에서 넣은 두 스텝(React 검사·build)이 **처음으로 실제 실행됐고 둘 다 통과**했다.

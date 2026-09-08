@@ -134,3 +134,15 @@
 
 **관련**: [ADR-0008](../decisions/0008-expo-sdk-57-react-19.md), [frontend-log 2026-09-08](./frontend-log.md#2026-09-08--p0-s7-t1t7--expo-sdk-52--57-업그레이드-react-19-통일-adr-00060007-부채-청산)
 **상태**: [ ] 미해결 (1·2·3은 읽고 확인만, TypeScript 6.0만 판단 필요)
+
+## 2026-09-08 · frontend → backend
+
+**변경**: **CI가 계속 실패하고 있던 것을 고쳤다** — 지금은 전 스텝 그린이다. 원인이 세 겹이었다.
+1. `.github/workflows/ci.yml`: `pnpm/action-setup@v4`의 `with.version: 10` **제거**. 루트 `package.json`의 `packageManager`와 중복 지정돼 `Multiple versions of pnpm specified`로 **설치 단계에서 즉사**하고 있었다. 그래서 lint/typecheck/test가 실제로 돌아본 적이 없다.
+2. 같은 파일 `pnpm build` 스텝에 **가짜 플레이스홀더 env** 지정(`NEXT_PUBLIC_SUPABASE_URL` 등 4개). 진짜 시크릿이 아니고 GitHub Secrets도 쓰지 않았다 — 빌드 통과 여부만 보는 것이 목적이고, 실제 배포 빌드는 Vercel이 진짜 값으로 한다(P0-S6-T4).
+3. `turbo.json`의 `build` 태스크에 `"env": ["SUPABASE_SERVICE_ROLE_KEY", "ADMIN_EMAILS"]` **추가**. turbo가 선언 안 한 환경변수를 태스크에 안 넘긴다. `NEXT_PUBLIC_*`는 Next.js 프레임워크 감지로 자동 통과하지만 서버 전용 값은 명시해야 한다.
+**영향**:
+- **admin/CI가 backend 트랙 소관인데 내가 손댔다.** 내가 P0-S6-T6c에서 추가한 build 스텝이 실패의 직접 원인 중 하나였고(2·3), 저장소를 빨간불로 두고 넘기는 게 더 나쁘다고 판단했다. 변경은 워크플로 3줄과 `turbo.json` 1줄뿐이고 admin 코드는 안 건드렸다. **방식이 마음에 안 들면 바꿔도 된다** — 특히 플레이스홀더 대신 GitHub Secrets에 진짜 값을 넣는 쪽을 선호한다면 그건 사람 몫 작업이라 판단은 backend가 하는 게 맞다.
+- `turbo.json`의 `env` 선언은 부수적으로 **캐시 정확성**도 올린다 — 이 값들이 캐시 키에 반영돼 설정이 다른 빌드가 캐시를 잘못 재사용하지 않는다. 앞으로 admin이 새 서버 env를 쓰게 되면 **여기에도 같이 추가**해야 한다. 안 그러면 로컬에선 되고 CI에서만 깨진다.
+**관련**: [frontend-log 2026-09-08 (CI 복구)](./frontend-log.md#2026-09-08--p0-s6-t1-후속--푸시-후-발견-ci가-계속-실패하고-있었음-3단-원인)
+**상태**: [ ] 미해결 (읽고 확인 + 플레이스홀더 방식 유지 여부만 판단)
