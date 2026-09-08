@@ -9,7 +9,7 @@
 
 ## 진행 체크리스트
 
-- [ ] S1. 위젯 데이터 공급
+- [ ] S1. 위젯 데이터 공급 — T1·T3·T4 완료(backend), T2만 남음(frontend) — [로그](./logs/backend-log.md#2026-09-08--p3-s1-t1t3t4--위젯-데이터-계약--이미지-규격)
 - [ ] S2. iOS 위젯 (WidgetKit)
 - [ ] S3. Android 위젯 (Glance)
 - [ ] S4. 갱신·딥링크·안정화
@@ -30,10 +30,10 @@
 
 ### Task
 
-- 🤖 **P3-S1-T1** — 위젯 전용 경량 데이터(커버·곡명·아티스트·딥링크, published만)
-- 🤖 **P3-S1-T2** — 앱이 오늘 곡 수신 시 공유 스토리지에 위젯 데이터 기록
-- 🤖 **P3-S1-T3** — 위젯용 축소 이미지 준비 (ADR-0003 파이프라인 재사용)
-- 🤖 **P3-S1-T4** — 데이터 계약 문서화 (앱·iOS·Android 공유)
+- [x] 🤖 **P3-S1-T1** — 위젯 전용 경량 데이터(커버·곡명·아티스트·딥링크, published만) — `public.widget_today_pick` 뷰(마이그레이션 `20260908090000`). KST 자정 기준 오늘의 published 픽 0~1행, `security_invoker=on`으로 RLS 유지. dev·prod 적용 ([로그](./logs/backend-log.md#2026-09-08--p3-s1-t1t3t4--위젯-데이터-계약--이미지-규격))
+- [ ] 🤖 **P3-S1-T2** — 앱이 오늘 곡 수신 시 공유 스토리지에 위젯 데이터 기록 — **frontend 소관.** 계약은 [handoff 2026-09-08 backend → frontend](./logs/handoff.md) 참고
+- [x] 🤖 **P3-S1-T3** — 위젯용 축소 이미지 준비 (ADR-0003 파이프라인 재사용) — **512×512 WebP**, 경로 `{songId}/widget.webp`, 1년 캐시. 기존 150px는 실측 위젯 크기(iOS @3x 최대 510px)에 크게 부족해 상향. 기존 곡 백필 완료 ([로그](./logs/backend-log.md#2026-09-08--p3-s1-t1t3t4--위젯-데이터-계약--이미지-규격))
+- [x] 🤖 **P3-S1-T4** — 데이터 계약 문서화 (앱·iOS·Android 공유) — [handoff 2026-09-08 backend → frontend](./logs/handoff.md)에 필드표·이미지 규격·딥링크·fallback 순서·자정 갱신 트레이드오프까지 정리
 
 ---
 

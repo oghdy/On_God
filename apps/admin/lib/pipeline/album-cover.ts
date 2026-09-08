@@ -1,5 +1,5 @@
 // P1-S4-T5 (ADR-0003): 외부 앨범커버 URL을 다운로드 → WebP 변환·리사이즈(메인 600px +
-// 위젯용 축소 150px, ADR-0003의 "위젯용 작은 사이즈 변형도 동일 파이프라인에서 함께
+// 위젯용 512px, ADR-0003의 "위젯용 작은 사이즈 변형도 동일 파이프라인에서 함께
 // 생성") → Supabase Storage(`album-covers` 버킷)에 업로드한다.
 //
 // 외부 URL을 그대로 `songs.album_cover_url`에 박아두면 Apple Music/Spotify/YouTube가
@@ -13,7 +13,14 @@ import { getServiceRoleClient } from "@/lib/supabase/service-role";
 
 const BUCKET = "album-covers";
 const MAIN_SIZE = 600;
-const THUMBNAIL_SIZE = 150;
+
+// P3-S1-T3: 위젯(홈화면 2×2)용 변형 크기. 원래 150px였는데 실제 위젯 크기를 계산해보니
+// 심하게 부족했다 — iOS 소형 위젯은 최대 170×170pt이고 @3x 기기(iPhone 15/16 Pro Max)에서
+// 510×510px, Android 2×2도 xxxhdpi에서 비슷한 실측 크기가 나온다. 150px를 거기에 늘려
+// 그리면 눈에 띄게 뭉개진다. 512는 그 실측 최대치(510px)를 겨우 덮으면서 2의 거듭제곱이라
+// 스케일링 품질도 안정적이다. 더 키워도 위젯이 쓸 수 없다(iOS 위젯 익스텐션은 메모리 예산이
+// ~30MB로 빡빡하다 — 512×512 디코드가 약 1MB라 여기가 적정선).
+const WIDGET_SIZE = 512;
 
 // Supabase Storage는 업로드 시점의 `cacheControl`을 그대로 오브젝트의 `Cache-Control`
 // 응답 헤더로 내보내고, 그 앞단의 Cloudflare CDN이 이 값을 보고 엣지 캐싱 여부를 정한다.
@@ -62,16 +69,20 @@ async function toWebp(source: Buffer, size: number): Promise<Buffer> {
  */
 export async function copyAlbumCoverToStorage(songId: string, sourceUrl: string): Promise<AlbumCoverResult> {
   const original = await downloadImage(sourceUrl);
-  const [mainWebp, thumbnailWebp] = await Promise.all([
+  const [mainWebp, widgetWebp] = await Promise.all([
     toWebp(original, MAIN_SIZE),
-    toWebp(original, THUMBNAIL_SIZE),
+    toWebp(original, WIDGET_SIZE),
   ]);
 
   const db = getServiceRoleClient();
   const mainPath = `${songId}/cover.webp`;
-  const thumbnailPath = `${songId}/thumbnail.webp`;
+  // 파일명이 `thumbnail.webp`가 아니라 `widget.webp`인 이유(P3-S1-T3): 크기를 150→512로
+  // 바꾸면서 같은 경로에 덮어쓰면, 위 CACHE_CONTROL_SECONDS(1년)로 이미 CDN 엣지에 캐시된
+  // 150px 이미지가 만료 전까지 그대로 나갈 수 있다. 바로 그 상황을 대비해 위 주석에 "경로에
+  // 버전을 넣으라"고 적어뒀으니 그대로 따른다 — 새 파일명이라 캐시가 겹칠 여지가 없다.
+  const widgetPath = `${songId}/widget.webp`;
 
-  const [mainUpload, thumbnailUpload] = await Promise.all([
+  const [mainUpload, widgetUpload] = await Promise.all([
     db.storage
       .from(BUCKET)
       .upload(mainPath, mainWebp, {
@@ -81,7 +92,7 @@ export async function copyAlbumCoverToStorage(songId: string, sourceUrl: string)
       }),
     db.storage
       .from(BUCKET)
-      .upload(thumbnailPath, thumbnailWebp, {
+      .upload(widgetPath, widgetWebp, {
         contentType: "image/webp",
         cacheControl: CACHE_CONTROL_SECONDS,
         upsert: true,
@@ -89,10 +100,10 @@ export async function copyAlbumCoverToStorage(songId: string, sourceUrl: string)
   ]);
 
   if (mainUpload.error) throw new Error(`Storage 업로드 실패(메인): ${mainUpload.error.message}`);
-  if (thumbnailUpload.error) throw new Error(`Storage 업로드 실패(썸네일): ${thumbnailUpload.error.message}`);
+  if (widgetUpload.error) throw new Error(`Storage 업로드 실패(위젯): ${widgetUpload.error.message}`);
 
   return {
     albumCoverUrl: db.storage.from(BUCKET).getPublicUrl(mainPath).data.publicUrl,
-    albumCoverThumbnailUrl: db.storage.from(BUCKET).getPublicUrl(thumbnailPath).data.publicUrl,
+    albumCoverThumbnailUrl: db.storage.from(BUCKET).getPublicUrl(widgetPath).data.publicUrl,
   };
 }
