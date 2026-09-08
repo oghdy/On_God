@@ -11,9 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 버전을 여기 적지 않는다. 루트 package.json의 packageManager
+      # ("pnpm@10.15.0")를 액션이 읽어 쓴다. 둘 다 지정하면
+      # "Multiple versions of pnpm specified"로 설치 단계에서 죽는다.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
