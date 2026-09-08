@@ -55,13 +55,13 @@
 
 ### Task
 
-- [x] 🤝 **P3-S2-T1** — Config Plugin으로 Widget Extension 타깃 추가 — `expo-widgets` 플러그인에 확정 식별자 지정. `expo prebuild`로 타깃·entitlements·번들 ID 생성 검증(생성물은 지우고 관리형 유지). **EAS Build 자체는 미실행**
+- [x] 🤝 **P3-S2-T1** — Config Plugin으로 Widget Extension 타깃 추가·**EAS Build 완료** — `expo-widgets` 플러그인에 확정 식별자 지정. EAS 시뮬레이터 개발 빌드로 `.app` 산출, `PlugIns/ExpoWidgetsTarget.appex` 포함 확인, 시뮬레이터 설치·위젯 추가까지 성공 ([로그](./logs/frontend-log.md#2026-09-08--p3-s2-t1t2t3t5t6--eas-개발-빌드--위젯-실렌더-검증))
   *~~당신: Apple Developer에서 App Group·위젯용 App ID·프로비저닝 설정~~ → **2026-09-08 완료.** 확정 식별자: App Group `group.com.ongod.app` / 위젯 Bundle ID `com.ongod.app.widget` / 앱 `com.ongod.app`. 프로비저닝은 EAS Build가 자동 생성. 남은 건 에이전트 몫(플러그인·SwiftUI 코드)*
 - [x] 🤖 **P3-S2-T2** — App Group 공유 컨테이너 연결 — `expo-widgets`가 App Group UserDefaults와 `widgetsDirectory`를 관리한다(ADR-0009). 앱·위젯 양쪽 entitlements에 `group.com.ongod.app` 생성 확인
-- [x] 🤖 **P3-S2-T3** — 2×2 위젯 뷰 (커버+곡명) — `widgets/OnGodToday.tsx`. SwiftUI를 직접 쓰지 않고 TSX + `@expo/ui/swift-ui`로 작성(ADR-0009). **렌더 결과는 EAS 빌드 전이라 미확인**
+- [x] 🤖 **P3-S2-T3** — 2×2 위젯 뷰 (커버+곡명) — `widgets/OnGodToday.tsx`. TSX + `@expo/ui/swift-ui`(ADR-0009). **시뮬레이터 홈 화면에서 실제 렌더 확인 완료** — 커버 풀블리드 + 하단 그라디언트 스크림 + 곡명/아티스트
 - 🤖 **P3-S2-T4** — TimelineProvider: 공유 컨테이너 읽기·자정 갱신
-- [x] 🤖 **P3-S2-T5** — 위젯 탭 → 앱 오늘 카드 딥링크 — `widgetURL("ongod://")` modifier. **동작은 실기기 검증 필요**
-- [x] 🤖 **P3-S2-T6** — 데이터 없음/이미지 실패 fallback — 이미지 3단계 폴백(위젯512 → 커버600 → 음표 심볼)은 `@ongod/core`에 테스트와 함께, 오늘 픽 없음은 안내 문구로 갱신. **렌더 결과 미확인**
+- [x] 🤖 **P3-S2-T5** — 위젯 탭 → 앱 오늘 카드 딥링크 — `widgetURL("ongod://")` modifier. 시뮬레이터에서 **탭 시 앱이 실제로 실행되는 것 확인**. 단 개발 빌드에서는 dev-client 런처가 스킴을 가로채 최종 라우팅까지는 확인 불가 — standalone 빌드 또는 실기기에서 재확인 필요
+- [x] 🤖 **P3-S2-T6** — 데이터 없음/이미지 실패 fallback — 이미지 3단계 폴백(위젯512 → 커버600 → 음표 심볼)은 `@ongod/core`에 테스트와 함께. **커버 없음 케이스를 시뮬레이터에서 강제 재현해 렌더 확인 완료** — 다크 배경(`containerBackground`) + 음표 심볼 + 곡명은 그대로 노출
 - 🧑 **P3-S2-T7** — iOS 실기기 테스트
   *당신: 실제 아이폰에 위젯 추가·갱신·탭 동작 확인 (시뮬레이터 한계, 사람 확인 필요)*
 

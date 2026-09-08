@@ -383,3 +383,33 @@
 - 이제 P3-S2-T4(타임라인 예약)를 백엔드 대기 없이 시작할 수 있다. 예약 내용은 "지금 = 오늘 곡(7시 지났으면) / 다음 7시 = 새로 받은 곡".
 - **백엔드에 요청할 것이 없어졌다.** handoff의 관련 항목은 "결정됨 — 조치 불필요"로 갱신했다.
 - prod에 published 픽이 0건이라 prod 위젯은 항상 빈 상태다. 출시 전 콘텐츠 필요하지만 개발·검증은 dev로 가능해 지금 막히지 않는다.
+
+## 2026-09-08 · P3-S2-T1/T2/T3/T5/T6 — EAS 개발 빌드 + 위젯 실렌더 검증
+
+**Task**: [P3-S2](../phase-3-widget.md#s2-ios-위젯-widgetkit)
+**한 일**: EAS 개발 빌드를 만들어 **위젯이 실제로 홈 화면에 그려지는 것까지 확인**했다. 그전까지 위젯은 코드만 있고 한 번도 화면에 떠본 적이 없었다.
+- **시뮬레이터 빌드를 먼저 택했다**(`development-simulator` 프로파일 신설). 실기기 빌드는 Apple 로그인·기기 UDID 등록이 필요한 사람 몫이지만, `ios.simulator: true` 빌드는 서명이 없어 **Apple 계정 없이** 만들 수 있고 내가 직접 검증할 수 있다.
+- **EAS 환경변수 등록**: `.env`는 EAS에 업로드되지 않아 빌드된 앱이 env 검증에서 죽는다. `eas env:push`로 dev 값을 development 환경에 올리고, `eas.json`의 각 프로파일에 `environment`를 명시해 빌드가 실제로 가져가게 했다(빌드 로그에서 로드 확인).
+- **빌드 실패 2회를 고쳤다**: (1) `expo-dev-client` 미설치 → 설치. (2) Sentry 소스맵 업로드가 org/project 미설정으로 빌드를 통째로 실패시킴 → `SENTRY_DISABLE_AUTO_UPLOAD=true`를 development/preview에만 지정.
+- **위젯 레이아웃 버그 2개를 실렌더로 발견·수정**(아래 "왜 이렇게" 참고).
+- `app.json`에 `ITSAppUsesNonExemptEncryption: false` 추가 — 빌드가 지적한 누락. 우리 앱의 암호화는 HTTPS뿐이라 면제 대상이고, 없으면 App Store Connect에서 빌드마다 사람이 수동 응답해야 한다.
+**왜 이렇게**:
+- **`resizable()` 누락 — 실렌더 없이는 절대 못 잡았을 버그.** 처음엔 위젯에 커버만 나오고 곡명·아티스트가 통째로 안 보였다. 텍스트 modifier를 다 빼도 그대로였고, 이미지를 빼니 텍스트가 멀쩡히 나왔다. 원인은 SwiftUI `Image`가 `resizable()` 없이는 `frame`으로 축소되지 않는다는 것 — 512pt 원본이 158pt 위젯 밖으로 한참 넘치면서 그 위에 겹칠 텍스트까지 덮어버렸다. **타입체크도 빌드도 통과하는 종류의 버그다.**
+- **modifier 순서가 의미를 바꾼다.** 그라디언트 스크림을 넣었더니 위젯 가장자리까지 안 칠해졌다. SwiftUI 그대로 `padding → frame → background` 순이어야 한다 — background를 frame보다 앞에 두면 늘어나기 전 크기에만 칠해진다.
+- **그림자 대신 그라디언트 스크림을 썼다.** 처음엔 글자마다 `shadow`를 줬는데, 오늘 커버("Songs of Praise")가 흰 배경이라 아티스트 텍스트가 여전히 흐렸다. 앨범아트 색을 예측할 수 없으므로 하단을 어둡게 까는 쪽이 확실하고, **앱의 DailyCard가 쓰는 방식과 같아 위젯과 앱의 인상이 일치**한다.
+- **`containerBackground`를 넣었다.** 커버 없는 곡에서 위젯 배경이 흰색으로 나와 다크 테마인 앱과 따로 놀았다. iOS 17+ 위젯은 배경을 이 modifier로 선언하는 게 정석이다.
+- **시뮬레이터 프로파일을 `extends`로 만들었다.** `development`를 상속하고 `ios.simulator`만 덧붙여, 두 프로파일이 갈라지지 않게 했다.
+- **위젯 레이아웃은 재빌드 없이 반복 검증된다** — expo-widgets가 레이아웃 소스를 런타임에 네이티브로 넘기는 구조라, 앱만 재실행하면 위젯이 갱신된다. 덕분에 위 버그들을 빌드 한 번으로 다 잡았다.
+**변경 파일**: `apps/mobile/eas.json`, `apps/mobile/app.json`, `apps/mobile/widgets/OnGodToday.tsx`, `apps/mobile/package.json`(`expo-dev-client`), `docs/phase-3-widget.md`
+**검증**:
+- EAS 빌드 성공(`development-simulator`), 산출물에 **`PlugIns/ExpoWidgetsTarget.appex` 포함 확인**.
+- 시뮬레이터 설치 → dev client가 Metro 연결 → 앱 정상 동작 → `[widget] 동기화 {"pickDate":"2026-09-08","title":"Oh Happy Day"}`.
+- **위젯 갤러리에 "OnGod / 오늘의 곡" 노출 → 홈 화면 추가 → 실제 렌더 확인**: 커버 풀블리드 + 그라디언트 스크림 + 곡명/아티스트, 전부 실제 dev DB 데이터.
+- **커버 없음 폴백을 강제 재현해 확인**: 다크 배경 + 음표 심볼 + 곡명 유지. 확인 후 임시 코드 원복(`grep TEMP` 0건).
+- **위젯 탭 시 앱이 실제로 실행됨** — `widgetURL` 동작 확인.
+- `pnpm turbo run typecheck lint test build` 20/20.
+**막힌 점 / 다음 할 일**:
+- **딥링크 최종 라우팅은 아직 미확인.** 개발 빌드에서는 dev-client 런처가 `ongod://`를 가로채 자기 화면을 띄운다. 앱이 실행되는 것까지는 확인했고 index가 곧 오늘 카드라 실패 위험은 낮지만, **standalone 빌드나 실기기에서 재확인**이 필요하다.
+- **실기기 빌드는 아직 안 했다.** Apple 로그인·기기 UDID 등록이 필요한 사람 몫이다. 시뮬레이터로 렌더·폴백·데이터 경로를 다 검증해뒀으므로, 실기기에서 확인할 것은 자정(7시) 갱신과 딥링크 라우팅으로 좁혀졌다.
+- **Sentry**: production 프로파일은 소스맵 업로드를 그대로 뒀다. Sentry 계정이 생기기 전에 production 빌드를 시도하면 실패한다 — 의도한 것이다(조용히 빠지는 것보다 낫다). 계정이 생기면 `app.json`의 `@sentry/react-native` 플러그인에 org/project를 넣으면 된다.
+- 다음: P3-S2-T4(자정 7시 타임라인 예약) → P3-S3(Android Glance).

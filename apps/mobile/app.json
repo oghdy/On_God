@@ -15,7 +15,8 @@
           "music",
           "spotify",
           "youtube"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
