@@ -42,7 +42,7 @@
 ### Task
 
 - 🤝 **P3-S2-T1** — Config Plugin으로 Widget Extension 타깃 추가·EAS Build
-  *나: 플러그인·SwiftUI 코드 / 당신: Apple Developer에서 App Group·위젯용 App ID·프로비저닝 설정*
+  *~~당신: Apple Developer에서 App Group·위젯용 App ID·프로비저닝 설정~~ → **2026-09-08 완료.** 확정 식별자: App Group `group.com.ongod.app` / 위젯 Bundle ID `com.ongod.app.widget` / 앱 `com.ongod.app`. 프로비저닝은 EAS Build가 자동 생성. 남은 건 에이전트 몫(플러그인·SwiftUI 코드)*
 - 🤖 **P3-S2-T2** — App Group 공유 컨테이너 연결
 - 🤖 **P3-S2-T3** — 2×2 SwiftUI 위젯 뷰 (커버+곡명)
 - 🤖 **P3-S2-T4** — TimelineProvider: 공유 컨테이너 읽기·자정 갱신

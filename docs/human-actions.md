@@ -60,9 +60,13 @@
 
 ## Phase 3 — Widget & 출시
 
-- [ ] **P3-S2-T1** 🤝 Apple Developer에서 App Group·위젯 App ID·프로비저닝 설정 — **Phase 3 S2 시작 전에 필요하다. 지금 미리 해두면 좋다.**
-  *구체적으로 세 가지: (1) **App Group** 생성 — `group.com.ongod.app` 형태 권장. 앱과 위젯이 데이터를 주고받는 통로라 위젯의 핵심 전제다. (2) **위젯 확장용 App ID** — 기존 `com.ongod.app`과 별개로 `com.ongod.app.widget` 같은 걸 만들고, 두 App ID 모두에 위 App Group을 활성화. (3) 두 App ID의 **프로비저닝 프로파일** 갱신. 만든 뒤 App Group 식별자를 정확한 문자열로 알려주면 내가 Config Plugin에 반영한다.*
-  *참고: **Expo Go로는 위젯을 못 띄운다.** Phase 3부터는 EAS 개발 빌드가 필수다(EAS 프로젝트 연결 자체는 이미 완료 — 계정 `doyis`).*
+- [x] **P3-S2-T1** 🤝 Apple Developer에서 App Group·위젯 App ID 설정 — **완료 (2026-09-08)**
+  *확정된 식별자 (프론트가 Config Plugin에 그대로 쓸 값):*
+  - *App Group: `group.com.ongod.app`*
+  - *위젯 확장 Bundle ID: `com.ongod.app.widget`*
+  - *앱 Bundle ID: `com.ongod.app` (기존, App Group 활성화 완료)*
+  *프로비저닝 프로파일은 EAS Build가 자동 생성하므로 사람이 만들 필요 없다.*
+  *참고: **Expo Go로는 위젯을 못 띄운다** — Phase 3부터는 EAS 개발 빌드로 실기기에 설치해야 한다(EAS 프로젝트 연결은 이미 완료, 계정 `doyis`).*
 - [ ] **P3-S2-T7** 🧑 iOS 실기기 위젯 테스트
 - [ ] **P3-S3-T7** 🧑 Android 실기기 위젯 테스트
 - [ ] **P3-S4-T4** 🧑 양 플랫폼 실기기 종합 테스트

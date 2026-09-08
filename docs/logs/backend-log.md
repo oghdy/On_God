@@ -735,3 +735,32 @@
 **변경 파일**: `docs/secrets-policy.md`
 **검증**: `cron.job_run_details` 실제 조회(dev 10건/prod 5건), `/tmp/ongod_*_dbpw.txt` 부재 확인, `cron.job`의 `active=true`·`schedule='0 15 * * *'` 재확인
 **막힌 점 / 다음 할 일**: 09-09·09-10 픽이 실제로 cron에 의해 발행되는지는 해당 날짜 자정 이후 확인 가능 — 다만 위 이력으로 cron 자체는 이미 검증됐으니 검수 플래그가 서 있는 한 발행될 것
+
+## 2026-09-08 · P1-S5-T6 지원 — 2주치 콘텐츠 확보 (dev), 파이프라인 성공률 실측
+
+**Task**: [P1-S5-T6](../phase-1-content-pipeline.md#s5-검수-ui) 지원 / Phase 3 개발용 데이터 확보
+**한 일**: 흑인영가·가스펠 명곡 13곡을 추가로 실제 파이프라인에 태우고, 9/11~9/20 10일치를 예약해 **오늘부터 13일치 연속 콘텐츠**를 확보했다(총 곡 20, 예약 12, 발행 4).
+
+**곡 선정**: 흑인영가(spirituals)와 가스펠 클래식을 섞었다 — `Amazing Grace`/`Nobody Knows the Trouble I've Seen`/`Deep River`/`Sometimes I Feel Like a Motherless Child`/`Every Time I Feel the Spirit`/`Down by the Riverside`(영가 계열), `Peace Be Still`/`How I Got Over`/`Goin' Up Yonder`/`Never Would Have Made It`/`Optimistic`/`Take Me to the King`/`Break Every Chain`(가스펠). 아티스트는 Apple Music 카탈로그 매칭률을 높이려고 실제 대표 녹음의 아티스트로 지정했다(Mahalia Jackson, James Cleveland, Marvin Sapp 등) — "Traditional"로 넣으면 카탈로그에서 특정 음반을 못 집어 커버가 안 붙는다(초기 2곡이 그 사례).
+
+**파이프라인 성공률 실측 (20곡 기준)**:
+- **15곡 완전 성공**(전 단계 done + 커버). 이 중 Apple Music 커버가 붙은 건 신규 18곡 전부
+- **실패 유형은 전부 Genius 가사 미검색**: `Deep River`, `Every Time I Feel the Spirit`, `Swing Low, Sweet Chariot`이 `lyrics: NOT_FOUND` → 가사가 없으니 번역·해석도 연쇄 스킵(설계대로 부분 성공 처리). **영가는 표준 가사 텍스트가 여러 판본으로 갈려서 Genius 등재가 들쭉날쭉하다** — 앞으로도 이 비율(대략 15%)은 감안해야 한다. 검수 화면에서 사람이 원문을 직접 붙여넣으면 살릴 수 있다(P1-S5-T2의 `upsert` 설계가 정확히 이 경우를 위한 것)
+- **`Nobody Knows the Trouble I've Seen`은 songInfo만 실패**(가사·번역·커버는 정상). 검수 화면의 "AI로 소개 재생성"으로 복구 가능
+
+**왜 이렇게**:
+- **예약을 전부 `scheduled`로 넣었다**(직접 `published` 아님). 9/9부터는 **진짜 cron이 KST 자정마다 하나씩 발행**한다 — 이번 세션에서 cron이 10일 내내 정확히 돈 걸 확인했으니, 이게 실제 운영과 동일한 상태다. 프론트가 위젯 자정 갱신을 며칠에 걸쳐 실제 경로로 검증할 수 있다
+- **커버 없는 곡·가사 없는 곡을 지우지 않고 남겼다**: `Go Down Moses`(커버 없음)는 위젯 fallback 테스트 케이스, 가사 실패 3곡은 검수 화면에서 사람이 채우는 흐름을 실제 데이터로 연습할 대상이다. 전부 깨끗하면 예외 경로를 검증할 방법이 없다
+- **9/21 하루가 비어있다**: 재고 경고가 "14일 중 1일치 비어있음"으로 뜬다. 일부러 남긴 건 아니고 완전 성공한 곡 수가 딱 거기까지였다 — 경고 UI가 실제로 동작하는 걸 보여주는 효과도 있어 그대로 뒀다
+
+> ⚠️ 앞선 항목과 동일하게, **이 곡들의 `is_verified=true`도 사람 검수를 거친 게 아니라 dev 픽스처용으로 내가 세운 것이다.** prod에는 적용하지 않는다.
+
+**변경 파일**: 없음(dev DB 데이터만)
+**검증**:
+- 어드민 대시보드 실제 화면: 전체 곡 **20**, 예약됨 **12**, 발행됨 **4**, 재고 경고 "14일 중 **1일치** 비어있음"(직전 11일치 → 개선), 9월 캘린더에 6~20일 곡명 표시
+- 발행 일정 16건 전수 조회: 9/8까지 published, 9/9~9/20 scheduled, **전 항목 위젯 이미지·검수 플래그 O**(커버 없는 8/29 Go Down Moses만 의도적 예외)
+- 위젯 뷰가 anon 키로 오늘 픽 정상 반환
+
+**막힌 점 / 다음 할 일**:
+- **어드민 폼 자동화 시 주의점(다음 세션용)**: 브라우저 배치(`browser_batch`) 안에서 제출 버튼 클릭이 **폼을 실제로 제출하지 않는다** — 로그에 POST가 아예 안 남는다. 값 채우기까지만 배치로 하고 **클릭은 단독 호출로 분리**해야 한다. 또 `ref` 기반 클릭이 실제 버튼 위치와 어긋나는 경우가 있어(뷰포트 568×718 vs 스크린샷 프레임 800×1011) 좌표로 클릭하는 편이 안전하다. 이거 모르고 12곡이 통째로 등록 안 된 걸 뒤늦게 발견했다
+- 가사 실패 3곡·소개 실패 1곡은 검수 화면에서 복구 가능 — 사람 검수(P1-S5-T6) 때 같이 처리하면 된다
