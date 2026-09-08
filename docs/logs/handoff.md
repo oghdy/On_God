@@ -96,7 +96,7 @@
 - 참고로 **타입체크·`expo export` 성공은 이 클래스의 회귀를 못 잡는다** — React 사본이 둘이어도 번들링은 정상 성공하고 런타임에만 터진다.
 - **재발 방지 검사를 CI에 넣어뒀다**(P0-S6-T6c): `scripts/check-single-react.mjs`가 `pnpm install` 직후 스텝으로 돌면서 expo 계열 패키지들이 mobile과 같은 react 사본을 잡는지 확인한다. 루트 핀을 제거해 사고 상태를 재현했을 때 실제로 exit 1로 실패하는 것까지 확인했으니, 앞으로 링커나 의존성 레이아웃을 건드려도 이 사고는 CI에서 잡힌다.
 **관련**: [ADR-0007](../decisions/0007-root-react-runtime-pin.md), [frontend-log 2026-09-07](./frontend-log.md#2026-09-07--p0-s6-t6b--adr-0006-링커-전환-후-모바일-기동-검증--이중-react-회귀-수정)
-**상태**: [ ] 미해결 (읽고 확인만 해주면 됨 — 조치할 건 없음)
+**상태**: [x] 처리완료 — 백엔드 세션, 2026-09-08. 확인함. 다만 이 항목은 **ADR-0008(SDK 57 / React 19 통일)로 이미 무효화됐다** — 루트 react/react-dom 18 고정은 제거됐고 관리 지점은 `pnpm-workspace.yaml`의 `overrides` 한 곳이다. 여기 적힌 '다섯 곳' 표는 더 이상 유효하지 않으니 다음 세션은 ADR-0008을 보면 된다. `scripts/check-single-react.mjs`가 CI에 남아 있는 건 그대로 유지하는 게 맞다고 판단했다(React 통일과 무관하게 링커·의존성 레이아웃 사고를 잡는 그물).
 
 ## 2026-09-07 · frontend → backend
 
@@ -104,7 +104,7 @@
 **영향**: `pnpm turbo run typecheck lint test build`를 **동시 실행하면 `@ongod/admin:typecheck`가 간헐적으로 실패한다.** `apps/admin/tsconfig.json`의 `include`에 `.next/types/**/*.ts`가 들어있는데, 같은 시각 `@ongod/admin:build`(`next build`)가 그 디렉터리를 지웠다 다시 만들면서 `error TS6053: File '.../.next/types/app/layout.ts' not found`가 난다(파일 5~6개에 대해 동시에). 재현·격리 결과: `--concurrency=1`이면 20/20 통과, `build`를 뺀 `typecheck lint test`만이면 19/19 통과, 넷을 동시에 돌리면 실패 — 즉 **내 의존성 변경과 무관한 기존 레이스**이고, 백엔드 세션이 본 20/20은 레이스를 이긴 결과로 보인다. **CI는 영향 없음을 확인했다** — `.github/workflows/ci.yml`은 `pnpm lint`/`pnpm typecheck`/`pnpm test`를 각각 별도 스텝으로 돌리므로 typecheck와 build가 겹치지 않는다. 즉 이 레이스는 로컬에서 네 개를 한 번에 돌릴 때만 터진다. **다만 그 반대급부로 CI는 `build`를 아예 안 돌린다** — ADR-0006이 고쳤던 증상 2(`next build`가 `Cannot read properties of null (reading 'useRef')`로 깨지던 것)는 지금 CI가 잡아주지 못한다는 뜻이라, 레이스를 고치는 김에 CI에 build 스텝을 넣는 것도 같이 검토해주면 좋겠다. 고치는 방향은 두 가지: (1) `turbo.json`에서 admin `typecheck`가 `build`에 `dependsOn`하게 해서 순서를 강제, (2) `.next/types`를 `include`에서 빼기(다만 Next의 타입 라우트 검증을 잃음). admin/Next 소관이라 판단해서 진단만 남기고 손대지 않았다.
 **후속(2026-09-07~08, 프론트 세션)**: **CI에 `pnpm build` 스텝을 추가했다** — `typecheck`와 별도 스텝이라 순차 실행되므로 레이스가 성립하지 않고, 동시에 ADR-0006이 고쳤던 `next build` 깨짐도 이제 CI가 잡는다. **정정**: 처음에 "env 없이도 빌드된다"고 적었는데 **틀렸다.** 로컬에서 `env -i`로 셸 환경만 비우고 검증했는데, Next.js가 디스크의 `apps/admin/.env.local`을 자동으로 읽고 있었다. 실제 CI에선 `NEXT_PUBLIC_SUPABASE_URL: Required`로 깨졌다. `.env.local`을 실제로 치운 상태에서 재검증한 뒤, 워크플로에 **가짜 플레이스홀더 env**를 넣어 해결했다(진짜 시크릿 아님 — 빌드 통과 여부만 보는 것이 목적이고 실제 배포 빌드는 Vercel이 진짜 값으로 수행한다). **즉 CI 쪽 구멍은 메워졌고, 남은 건 로컬에서 `pnpm turbo run typecheck lint test build`를 한 번에 돌릴 때 나는 레이스뿐이다.** 이건 여전히 admin `tsconfig.json`/`turbo.json` 소관이라 backend가 판단해주면 된다(급하지 않음 — 로컬에선 `--concurrency=1`로 우회 가능).
 **관련**: [frontend-log 2026-09-07](./frontend-log.md#2026-09-07--p0-s6-t6b--adr-0006-링커-전환-후-모바일-기동-검증--이중-react-회귀-수정), [frontend-log P0-S6-T6c](./frontend-log.md#2026-09-07--p0-s6-t6c--이중-react-회귀-방지-검사-ci-추가--android-검증)
-**상태**: [ ] 미해결 (우선순위 낮음 — CI는 이미 안전)
+**상태**: [x] 처리완료 — 백엔드 세션, 2026-09-08. 고쳤다. 제안된 두 방향 중 (1)(turbo `dependsOn`으로 순서 강제)은 typecheck만 돌려도 build가 딸려와 느려지고, (2)(`.next/types`를 include에서 빼기)는 `tsconfig.json`이 Next가 직접 관리하는 파일이라 `next dev/build`가 도로 되돌린다. 그래서 **typecheck 전용 `tsconfig.typecheck.json`을 따로 두고 거기서만 `.next`를 끊었다**(`tsconfig.json`은 그대로). `exclude`만으로는 부족했다 — `next-env.d.ts`의 `/// <reference path="./.next/types/routes.d.ts" />`가 exclude를 무시하고 파일을 끌어와서, `next-env.d.ts`를 제외하고 그 참조를 `compilerOptions.types`로 직접 지정해야 `.next` 참조가 0이 된다. 타입 라우트 검증은 `next build`가 그대로 하므로 저장소 전체 검증 범위는 동일하다. **동시 실행 3회 연속 20/20**(`--concurrency` 제한 없이)로 재현 안 되는 것 확인. [backend-log 2026-09-08](./backend-log.md#2026-09-08--p0-s6-t6d--admin-typecheck-next-types-레이스-제거)
 
 ## 2026-09-08 · frontend → backend
 
@@ -133,7 +133,7 @@
 - 이전 handoff에 남긴 **admin `.next/types` 레이스**는 그대로다(로컬에서 네 개를 동시에 돌릴 때만, CI는 안전).
 
 **관련**: [ADR-0008](../decisions/0008-expo-sdk-57-react-19.md), [frontend-log 2026-09-08](./frontend-log.md#2026-09-08--p0-s7-t1t7--expo-sdk-52--57-업그레이드-react-19-통일-adr-00060007-부채-청산)
-**상태**: [ ] 미해결 (1·2·3은 읽고 확인만, TypeScript 6.0만 판단 필요)
+**상태**: [x] 처리완료 — 백엔드 세션, 2026-09-08. 1·2·3 확인했다(`node_modules` 재설치하고 작업함). **TypeScript는 6.0.3으로 올렸다.** 판단 근거: 6.0.2/6.0.3은 정식 릴리스이고, `next` 15.5.24는 typescript를 peer로 요구하지 않아 버전 제약 자체가 없다. 먼저 `overrides`로 임시 적용해 `typecheck lint test build` **20/20 통과**를 확인한 뒤, override는 지우고 선언 8곳(`apps/*`, `packages/*`, 루트)을 `^6.0.3`으로 갱신했다. TS 7.0.2가 이미 npm `latest`지만(네이티브 Go 포트) 도약이 크고 Expo 권장도 `~6.0.3`이라 거기 맞췄다 — 7은 툴체인이 더 무르익은 뒤에 별도로 판단하는 게 맞다. [backend-log 2026-09-08](./backend-log.md#2026-09-08--p0-s7-후속--typescript-603-채택)
 
 ## 2026-09-08 · frontend → backend
 
@@ -145,4 +145,72 @@
 - **admin/CI가 backend 트랙 소관인데 내가 손댔다.** 내가 P0-S6-T6c에서 추가한 build 스텝이 실패의 직접 원인 중 하나였고(2·3), 저장소를 빨간불로 두고 넘기는 게 더 나쁘다고 판단했다. 변경은 워크플로 3줄과 `turbo.json` 1줄뿐이고 admin 코드는 안 건드렸다. **방식이 마음에 안 들면 바꿔도 된다** — 특히 플레이스홀더 대신 GitHub Secrets에 진짜 값을 넣는 쪽을 선호한다면 그건 사람 몫 작업이라 판단은 backend가 하는 게 맞다.
 - `turbo.json`의 `env` 선언은 부수적으로 **캐시 정확성**도 올린다 — 이 값들이 캐시 키에 반영돼 설정이 다른 빌드가 캐시를 잘못 재사용하지 않는다. 앞으로 admin이 새 서버 env를 쓰게 되면 **여기에도 같이 추가**해야 한다. 안 그러면 로컬에선 되고 CI에서만 깨진다.
 **관련**: [frontend-log 2026-09-08 (CI 복구)](./frontend-log.md#2026-09-08--p0-s6-t1-후속--푸시-후-발견-ci가-계속-실패하고-있었음-3단-원인)
-**상태**: [ ] 미해결 (읽고 확인 + 플레이스홀더 방식 유지 여부만 판단)
+**상태**: [x] 처리완료 — 백엔드 세션, 2026-09-08. 확인했고 **셋 다 그대로 유지한다.** admin/CI가 내 소관인 건 맞지만, 빨간 CI를 넘기지 않으려고 고친 판단이 옳았다 — 특히 (1)은 내 트랙이 만든 결함이고(`packageManager`와 `action-setup.version` 중복), 그걸 방치했으면 이 세션에서도 lint/typecheck/test가 한 번도 안 돈 채로 계속 갔을 것이다. **플레이스홀더 env도 유지한다**: CI의 목적은 '빌드가 통과하는가'이고 진짜 배포는 Vercel이 실제 값으로 한다(P0-S6-T4). GitHub Secrets에 진짜 값을 넣으면 관리 지점만 하나 더 늘고, PR 빌드에 실제 시크릿을 노출하는 위험이 생겨서 오히려 나쁘다. `turbo.json`의 `env` 선언 규칙(admin이 새 서버 env를 쓰면 여기도 추가)은 알아뒀고, 앞으로 지킨다.
+
+## 2026-09-08 · backend → frontend
+
+**변경**: Phase 3 S1의 백엔드 소관 두 Task를 끝냈다 — 위젯이 읽을 **데이터 계약**과 **이미지 규격**이 확정됐다. 프론트는 이걸 기준으로 P3-S1-T2(앱 → 공유 스토리지 기록)를 시작하면 된다.
+
+### 1. 읽기 엔드포인트 — `widget_today_pick` 뷰 (P3-S1-T1)
+
+```
+GET {SUPABASE_URL}/rest/v1/widget_today_pick?select=*
+apikey: {ANON_KEY}
+```
+
+anon 키로 조회된다(게스트 모드에서도 위젯이 동작해야 하므로 의도된 것). **결과는 0행 또는 1행.**
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `pick_date` | `date` | KST 기준 오늘 날짜 (`YYYY-MM-DD`) |
+| `published_at` | `timestamptz` | 실제 발행 시각 |
+| `song_id` | `uuid` | 곡 ID |
+| `title` | `text` | 곡명 |
+| `artist` | `text` | 아티스트 |
+| `widget_image_url` | `text?` | **위젯용 512×512 WebP** (아래 2번) — **null 가능** |
+| `album_cover_url` | `text?` | 원본 600×600 WebP — `widget_image_url`이 null일 때 대체용, 역시 null 가능 |
+
+**뷰가 서버에서 강제하는 것** — 앱·iOS·Android 세 곳이 각자 구현하면 반드시 어긋나는 부분이라 DB로 내렸다:
+- `status = 'published'`인 픽만 (예약·미검수 콘텐츠가 위젯에 새어나가지 않음)
+- **"오늘"의 기준은 KST 자정.** P1-S6 발행 cron(UTC 15:00 = KST 00:00)과 정확히 같은 기준이다. 클라이언트 로컬 타임존으로 계산하면 해외 사용자에게 하루 어긋난다 — **직접 계산하지 말고 이 뷰를 그대로 쓸 것.**
+
+**0행이 나오는 경우가 정상 시나리오다** (그날 픽이 없거나 아직 검수가 안 끝나 발행 안 됨). 이때 위젯은 P3-S2-T6/P3-S3-T6 fallback을 타면 된다. 지금 dev가 정확히 이 상태라 fallback 경로를 바로 테스트해볼 수 있다.
+
+### 2. 위젯 이미지 규격 (P3-S1-T3)
+
+| 항목 | 값 |
+|------|-----|
+| 크기 | **512 × 512** (정사각, `fit: cover`로 크롭) |
+| 포맷 | WebP (quality 82) |
+| 경로 | `album-covers/{songId}/widget.webp` |
+| 캐시 | `Cache-Control: public, max-age=31536000` (1년) |
+| 대략 용량 | 30~60KB |
+
+**512인 이유**: iOS 소형 위젯은 최대 170×170pt이고 @3x 기기(iPhone 15/16 Pro Max)에서 실측 510×510px, Android 2×2도 xxxhdpi에서 비슷하다. 기존 150px는 여기 늘려 그리면 눈에 띄게 뭉개진다. 더 키우지 않은 건 iOS 위젯 익스텐션 메모리 예산(~30MB)이 빡빡해서다(512×512 디코드가 약 1MB).
+
+**WebP는 양 플랫폼 다 된다** — iOS는 14+에서 ImageIO가 디코딩하고(우리 최소 타깃보다 낮음), Android는 4.0+.
+
+**파일명이 `thumbnail.webp`가 아니라 `widget.webp`인 이유**: 기존 150px가 `thumbnail.webp`에 1년 캐시로 이미 올라가 있어서, 같은 경로에 덮어쓰면 CDN 엣지에 남은 150px가 만료 전까지 그대로 나갈 수 있다. 새 파일명으로 캐시 충돌을 원천 차단했다. **DB 컬럼명은 `songs.album_cover_thumbnail_url` 그대로**이고(뷰에서 `widget_image_url`로 노출), 그 값이 이제 `widget.webp`를 가리킨다.
+
+### 3. 딥링크
+
+위젯 탭 → **`ongod://`** (앱 index = 오늘 카드). 목적지가 항상 같아서 데이터로 내려보내지 않는다 — 상수로 두면 된다. 곡별 가사로 바로 보내고 싶어지면 `ongod://lyrics/{song_id}`가 되겠지만, P3-S2-T5 명세는 "오늘 카드 진입"이라 그대로 뒀다.
+
+### 4. 프론트가 판단해야 할 것 — 자정 갱신 시 데이터 공백
+
+**내일 픽을 미리 못 받는다.** RLS가 `published`만 노출하고, 내일 픽은 KST 자정 cron이 돌기 전까지 `scheduled`다. 즉 **자정 직전에 미리 받아두는 prefetch가 구조적으로 불가능**하다.
+
+그래서 위젯 갱신은 이렇게 될 수밖에 없다: 자정 이후 백그라운드 fetch가 성공해야 새 곡이 뜬다. iOS 백그라운드 fetch는 실행 시점이 OS 재량이라, **자정 직후 잠깐 어제 곡이 남아 있는 구간이 생긴다.**
+
+선택지는 둘이다:
+- **(a) 그대로 두기** — 어제 곡이 잠시 남고, fetch 성공 시 갱신. 구현 단순, 데이터는 항상 정확(발행된 것만 노출).
+- **(b) 내일 픽 prefetch를 허용** — `scheduled` 픽을 자정 N시간 전부터 읽을 수 있게 뷰/RLS를 여는 것. 위젯 체감은 좋아지지만 **미발행 편집 콘텐츠가 클라이언트로 미리 나간다**(검수 중 내용이 바뀔 수도 있고, 발행 전에 유출됨).
+
+**나는 (a)를 기본으로 두고 뷰를 오늘 것만 내려주게 만들었다.** (b)가 필요하다고 판단되면 말해달라 — 뷰와 RLS를 여는 건 백엔드가 하면 되는데, 미발행 콘텐츠 노출은 제품 판단이라 내가 혼자 정할 게 아니라고 봤다. P3-S4-T1/T2 붙이면서 실제 체감을 보고 결정해도 늦지 않다.
+
+### 5. 이미지 fallback 순서 (P3-S2-T6 / P3-S3-T6 설계 참고)
+
+`widget_image_url` → (null이면) `album_cover_url` → (null이면) 앱 내장 플레이스홀더. 세 번째까지 갈 수 있다는 걸 꼭 처리해달라 — **지금 dev의 "Go Down Moses"가 실제로 커버가 아예 없는 케이스다**(Storage 버킷이 생기기 전에 등록된 곡이라 그렇다. 원인은 [backend-log 2026-09-08](./backend-log.md) 참고).
+
+**관련**: `supabase/migrations/20260908090000_widget_today_pick_view.sql`, `apps/admin/lib/pipeline/album-cover.ts`, [phase-3-widget.md S1](../phase-3-widget.md#s1-위젯-데이터-공급)
+**상태**: [ ] 미해결 (프론트가 P3-S1-T2 시작 시 이 계약대로 구현 + 4번 판단)

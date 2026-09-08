@@ -28,7 +28,8 @@
 - [x] **P0-S2-T2** 🤝 `supabase login` 브라우저 인증, project ref 제공 (완료)
 - [x] **P0-S2-T8** 🤝 마이그레이션 적용 시 CLI 인증/DB password 입력 (완료)
 - [x] **P0-S3-T1** 🤝 타입 자동생성 위해 project ref·로그인 상태 제공 — 완료. Docker는 필요 없었음: `supabase gen types typescript --project-id <ref>`가 로컬 컨테이너 없이 클라우드 dev 프로젝트에서 직접 타입을 생성함. 손으로 쓴 버전은 CLI 실제 출력으로 교체함 ([로그](./logs/backend-log.md#2026-08-28--p0-s3-t1-후속--손으로-쓴-db-타입을-cli-생성-타입으로-교체))
-- [ ] **P0-S5-T4** 🧑 발급한 시크릿 값들을 `.env`/Supabase·Vercel·EAS에 입력 — Supabase 부분은 완료, 나머지는 Phase 1 외부 API 키 발급 후
+- [ ] **P0-S5-T4** 🧑 발급한 시크릿 값들을 `.env`/Supabase·Vercel·EAS에 입력 — **Supabase·외부 API 키는 전부 완료.** 남은 건 Vercel(P0-S6-T4)·EAS 쪽 주입뿐이다.
+  *2026-09-08 정정: 'Apple Music 키가 없어서 앨범 커버가 안 채워진다'는 진단이 돌던데 **사실이 아니다.** 키는 2026-09-05에 반영됐고, 이번에 실제 파이프라인을 돌려 `apple-music: ok`와 진짜 앨범 아트까지 확인했다 ([로그](./logs/backend-log.md#2026-09-08--phase-3-블로커-해소--dev-콘텐츠-큐-원인-규명--실제-파이프라인으로-채움)). 이 항목은 Phase 3를 막고 있지 않다.*
 - [x] **P0-S6-T3** 🤝 Expo 계정 생성·EAS 프로젝트 연결 (완료 — 계정(`doyis`) 생성 후 로그인, `eas init`으로 프로젝트 연결까지 마침. 프로젝트: [expo.dev/accounts/doyis/projects/ongod](https://expo.dev/accounts/doyis/projects/ongod), [로그](./logs/frontend-log.md#2026-09-06--eas-프로젝트-연결) 참고)
 - [ ] **P0-S6-T4** 🤝 Vercel에 GitHub 레포 연결, 환경변수 입력 (`vercel.json`·환경변수 목록은 준비함, [`docs/secrets-policy.md`](./secrets-policy.md) 참고)
 - [x] **(사전)** 🧑 GitHub 레포 생성 (또는 내가 `git init` 후 remote 연결) — 완료 (`origin` → `github.com/oghdy/On_God`)
@@ -43,7 +44,8 @@
 - [x] **P1-S3-T0** 🧑 Anthropic API 키 발급·결제수단 등록 (완료, 라이브 검증됨 — OnGod 전용 워크스페이스 키로 재발급)
 - [x] **P1-S4 후속** 🧑 `supabase/migrations/20260829000001_lyrics_source_url.sql`을 dev·prod 둘 다에 적용 (완료 — Supabase PAT 발급받아 전달해줘서 Management API로 직접 적용·검증함, 마이그레이션 이력 테이블에도 기록)
 - [x] **P1-S4-T8** 🧑 Storage 버킷 생성·공개 정책 설정 (완료 — PAT로 직접 생성, `album-covers` 버킷 dev/prod 둘 다)
-- [ ] **P1-S5-T6** 🧑 AI 생성 콘텐츠 신학적/사실 정확성 최종 검수 (지속 운영 업무) — 검수 UI 완성됨(`/review`), dev DB에 "Go Down Moses" 1곡이 지금 검수 대기 중
+- [ ] **P1-S5-T6** 🧑 AI 생성 콘텐츠 신학적/사실 정확성 최종 검수 (지속 운영 업무) — 검수 UI 완성됨(`/review`)
+  *2026-09-08: **dev DB에 곡 5개를 실제 파이프라인으로 채웠는데, 그 콘텐츠의 `검수 완료` 표시는 내가 위젯 개발용으로 세운 것이지 실제 검수를 거친 게 아니다.** 위젯이 동작하려면 발행된 픽이 있어야 해서 부득이하게 세웠고, dev 한정이다. **prod에는 절대 이렇게 하지 않는다** — 출시 전 실제 노출될 콘텐츠는 반드시 당신이 `/review`에서 직접 읽고 검수해야 한다. 지금 dev의 내용도 시간 나실 때 한 번 봐주시면 좋다(AI 번역·해석 품질 감을 잡는 용도로도 유용하다).*
 - [ ] **P1-S6-T7** 🧑 Scheduled Function/pg_cron 활성화·권한 승인
 
 ## Phase 2 — Core App
@@ -58,7 +60,9 @@
 
 ## Phase 3 — Widget & 출시
 
-- [ ] **P3-S2-T1** 🤝 Apple Developer에서 App Group·위젯 App ID·프로비저닝 설정
+- [ ] **P3-S2-T1** 🤝 Apple Developer에서 App Group·위젯 App ID·프로비저닝 설정 — **Phase 3 S2 시작 전에 필요하다. 지금 미리 해두면 좋다.**
+  *구체적으로 세 가지: (1) **App Group** 생성 — `group.com.ongod.app` 형태 권장. 앱과 위젯이 데이터를 주고받는 통로라 위젯의 핵심 전제다. (2) **위젯 확장용 App ID** — 기존 `com.ongod.app`과 별개로 `com.ongod.app.widget` 같은 걸 만들고, 두 App ID 모두에 위 App Group을 활성화. (3) 두 App ID의 **프로비저닝 프로파일** 갱신. 만든 뒤 App Group 식별자를 정확한 문자열로 알려주면 내가 Config Plugin에 반영한다.*
+  *참고: **Expo Go로는 위젯을 못 띄운다.** Phase 3부터는 EAS 개발 빌드가 필수다(EAS 프로젝트 연결 자체는 이미 완료 — 계정 `doyis`).*
 - [ ] **P3-S2-T7** 🧑 iOS 실기기 위젯 테스트
 - [ ] **P3-S3-T7** 🧑 Android 실기기 위젯 테스트
 - [ ] **P3-S4-T4** 🧑 양 플랫폼 실기기 종합 테스트

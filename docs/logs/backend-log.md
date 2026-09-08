@@ -635,3 +635,78 @@
 - 재업로드 전 다운로드한 원본과 재업로드 후 다시 받은 파일을 `cmp`로 바이트 단위 비교 → **완전히 동일**(eTag도 동일: `2155e52...`/`59d2284...`) — 화질 손상이나 내용 변경 없음
 - GET 응답 헤더: `cache-control: public, max-age=31536000`, `cf-cache-status: HIT`로 실제 반영 확인(두 파일 모두)
 **막힌 점 / 다음 할 일**: 없음. 이걸로 P1-S4-T5/문제3 완전히 종료. 앞으로 등록되는 곡은 파이프라인 코드가 이미 `cacheControl`을 지정하므로 이 작업이 다시 필요 없음
+
+## 2026-09-08 · P0-S7 후속 — TypeScript 6.0.3 채택
+
+**Task**: [P0-S7](../phase-0-foundation.md#s7-런타임-업그레이드-expo-sdk-57--react-19-통일) (프론트가 판단을 넘긴 항목)
+**한 일**: 저장소 전체 TypeScript를 5.9.3 → **6.0.3**으로 올렸다. 선언 8곳(루트, `apps/admin`, `apps/mobile`, `packages/*` 5개)을 `^5.7.0` → `^6.0.3`.
+**왜 이렇게**:
+- **먼저 검증하고 나중에 선언했다**: 8개 파일을 고쳐놓고 깨지면 되돌리는 게 번거로워서, `pnpm-workspace.yaml`의 `overrides`에 `typescript: 6.0.3` 한 줄을 임시로 넣어 전체를 돌려봤다. 20/20 통과를 확인한 뒤에야 override를 지우고 선언을 갱신했다. 실패했으면 한 줄만 지우면 되는 구조
+- **왜 6인가**: 6.0.2/6.0.3은 이미 정식 릴리스이고, Expo SDK 57의 `expo install --check`가 `~6.0.3`을 권장한다. `next` 15.5.24는 `typescript`를 peerDependencies로 요구하지 않아 Next 쪽 버전 제약은 애초에 없다(확인함)
+- **왜 7이 아닌가**: 조사해보니 **TS 7.0.2가 이미 npm `latest`다**(네이티브 Go 포트). 하지만 (a) 도약이 크고 (b) Expo가 권장하는 건 6.0.3이라 툴체인 정합성이 여기 맞춰져 있다. 7은 eslint/Next 쪽 생태계가 더 붙은 뒤 별도 판단하는 게 맞다고 봤다 — 지금 넘어갈 이유가 없다
+- **override로 남기지 않은 이유**: React는 "저장소에 인스턴스가 하나여야 한다"는 제약 때문에 override가 맞지만(ADR-0008), TypeScript는 각 패키지의 평범한 devDependency다. 선언을 실제 지원 범위로 맞추는 게 정직하고, override는 남의 의존성을 강제로 비트는 도구라 필요할 때만 써야 한다
+**변경 파일**: `package.json`, `apps/admin/package.json`, `apps/mobile/package.json`, `packages/{config,core,db,integrations,ui-tokens}/package.json`, `pnpm-lock.yaml`
+**검증**: `pnpm turbo run typecheck lint test build --force --concurrency=1` **20/20 통과**(`next build` 포함). 설치된 실제 버전이 6.0.3인 것도 확인
+**막힌 점 / 다음 할 일**: 없음. TS 7은 나중에 별도 판단
+
+## 2026-09-08 · P0-S6-T6d — admin typecheck `.next/types` 레이스 제거
+
+**Task**: [P0-S6-T6d](../phase-0-foundation.md#s6-cicd-기초) (프론트가 진단만 남기고 넘긴 항목)
+**한 일**: `apps/admin/tsconfig.typecheck.json`을 새로 만들고 `typecheck` 스크립트가 그걸 쓰게 했다. `tsconfig.json`은 손대지 않았다.
+**왜 이렇게**:
+- **프론트가 제안한 두 방향을 둘 다 안 썼다.** (1) turbo `dependsOn`으로 `typecheck`가 `build` 뒤에 오게 하는 건, `pnpm typecheck`만 돌리고 싶을 때도 풀빌드가 딸려와서 가장 자주 쓰는 명령을 느리게 만든다. (2) `tsconfig.json`의 `include`에서 `.next/types`를 빼는 건 **Next.js가 그 파일을 직접 관리해서 `next dev/build`가 도로 넣는다** — 프레임워크와 싸우는 수정이라 다음 사람이 "왜 자꾸 되돌아오지?"로 시간을 버린다
+- 그래서 **타입체크 전용 설정을 따로 두고 거기서만 `.next`를 끊는** 방향을 택했다. `tsconfig.json`은 Next와 에디터가 쓰는 그대로 남는다
+- **`exclude`만으로는 안 끊긴다 — 이게 핵심이었다.** `.next`를 exclude에 넣어도 파일이 하나 남길래 `--listFiles`로 확인해보니 `.next/types/routes.d.ts`였다. `next-env.d.ts` 안의 `/// <reference path="./.next/types/routes.d.ts" />`가 **`exclude`를 무시하고** 파일을 끌어오기 때문이다(`reference path`는 exclude 대상이 아니다). 그래서 `next-env.d.ts` 자체를 제외하고, 그 안의 나머지 두 참조(`next`, `next/image-types/global`)를 `compilerOptions.types`로 직접 지정했다. 그제서야 `.next` 참조가 0이 됐다
+- **잃는 게 없는 이유**: `.next/types`가 주는 건 타입 라우트 검증(PageProps/LayoutProps)인데, `next build`가 자체 타입체크 단계에서 그대로 수행한다. CI는 `pnpm build`를 별도 스텝으로 돌리므로(프론트가 P0-S6-T6c에서 추가) 저장소 전체 검증 범위는 동일하다
+**변경 파일**: `apps/admin/tsconfig.typecheck.json`(신규), `apps/admin/package.json`(typecheck 스크립트)
+**검증**:
+- `.next` 참조 파일 수 **1 → 0** (`tsc --listFiles`로 직접 셈)
+- **타입체크가 여전히 진짜 에러를 잡는지 확인**: `lib/env.ts`에 일부러 `const x: number = "문자열"`을 넣어 `TS2322`로 실패하는 것 확인 후 복구 — 설정을 좁히다 검사 자체가 무력화되는 실수를 방지
+- **동시 실행 3회 연속 20/20**(`--concurrency` 제한 없이). 프론트가 보고한 재현 조건 그대로인데 한 번도 실패 안 함
+**막힌 점 / 다음 할 일**: 없음
+
+## 2026-09-08 · P3-S1-T1/T3/T4 — 위젯 데이터 계약 + 이미지 규격
+
+**Task**: [P3-S1-T1, T3, T4](../phase-3-widget.md#s1-위젯-데이터-공급)
+**한 일**:
+- **T3 위젯 이미지 규격**: `apps/admin/lib/pipeline/album-cover.ts`의 위젯용 변형을 **150×150 → 512×512**로 올리고, 업로드 경로를 `{songId}/thumbnail.webp` → `{songId}/widget.webp`로 바꿈
+- **T1 읽기 계약**: `public.widget_today_pick` 뷰 신설(마이그레이션 `20260908090000`). KST 자정 기준 오늘의 `published` 픽만 0~1행 반환. dev·prod 둘 다 적용
+- **T4 계약 문서화**: `handoff.md`에 필드표·이미지 규격·딥링크·fallback 순서·미해결 판단거리까지 정리
+**왜 이렇게**:
+- **150px는 실측해보니 명백히 부족했다.** ADR-0003이 "위젯용 작은 사이즈"라고만 적고 실제 위젯 크기를 정하기 전에 찍은 값이었다. iOS 소형 위젯은 최대 170×170pt이고 @3x 기기에서 **510×510px**, Android 2×2도 xxxhdpi에서 비슷하다. 150을 거기 늘려 그리면 눈에 띄게 뭉개진다. 512로 잡은 건 그 실측 최대치를 겨우 덮는 최소값이면서 2의 거듭제곱이라서다. 더 키우지 않은 이유는 iOS 위젯 익스텐션 메모리 예산(~30MB)이 빡빡해서(512×512 디코드가 약 1MB)
+- **파일명을 바꾼 게 이 작업의 함정이었다.** 같은 `thumbnail.webp`에 덮어쓰면, 내가 직전 세션에 넣은 `cacheControl: 1년` 때문에 CDN 엣지에 남은 150px가 만료 전까지 그대로 나갈 수 있다. 그때 코드 주석에 "재처리가 생기면 값을 줄이지 말고 경로를 바꿔라"고 적어뒀는데, 정확히 그 상황이 와서 그대로 따랐다 — 새 파일명이라 캐시가 겹칠 여지가 원천적으로 없다. **DB 컬럼명(`album_cover_thumbnail_url`)은 그대로 뒀다**: 이름을 바꾸면 마이그레이션 + `packages/db` 타입 + 매퍼 + 어드민 화면까지 번지는데, 얻는 건 이름의 정확도뿐이라 값어치가 안 맞는다고 봤다. 대신 뷰에서 `widget_image_url`로 노출해 계약 쪽 이름은 정확하게 만들었다
+- **왜 뷰인가**: 위젯 데이터를 앱의 오늘 카드 쿼리로 같이 처리하면 (a) 가사·해석까지 딸려오고 (b) 카드 화면이 바뀔 때마다 위젯 계약이 흔들린다. 더 중요한 건 **"오늘"의 정의와 "published만"이라는 규칙을 앱·iOS·Android 세 곳이 각자 구현하면 반드시 어긋난다**는 점이다 — 특히 KST 기준을 클라이언트 로컬 타임존으로 계산하면 해외 사용자에게 하루 밀린다. 그래서 DB로 내렸다
+- **`security_invoker = on`**: 뷰는 기본적으로 소유자 권한으로 실행돼서, 그냥 만들면 `daily_picks`의 "published만 공개" RLS를 우회해버린다. 호출자 권한으로 돌게 명시해 RLS가 그대로 적용되게 했다(PG 17.6이라 지원됨). anon 키로 실제 조회해서 미래 `scheduled` 픽이 안 보이는 것까지 확인
+- **오늘 것만 내려주기로 한 판단**: "내일 픽을 미리 받아두면 자정 갱신이 매끄럽다"는 유혹이 있는데, 그러려면 미발행(`scheduled`) 편집 콘텐츠를 클라이언트에 미리 내보내야 한다. 검수 중 내용이 바뀔 수도 있고 발행 전 유출이다. **이건 제품 판단이라 내가 혼자 정할 게 아니라고 보고**, 기본은 안전한 쪽(오늘만)으로 두되 트레이드오프를 handoff에 적어 프론트가 P3-S4 붙이면서 실제 체감으로 결정하게 넘겼다
+**변경 파일**: `supabase/migrations/20260908090000_widget_today_pick_view.sql`(신규), `apps/admin/lib/pipeline/album-cover.ts`, `docs/logs/handoff.md`
+**검증**:
+- 새로 등록한 5곡 전부 `widget.webp` **512×512 WebP** 생성 확인(18~40KB), 응답 헤더 `cache-control: public, max-age=31536000` 확인
+- **기존 곡 백필**: `Swing Low, Sweet Chariot`의 150px `thumbnail.webp`를 512px `widget.webp`로 재생성·업로드하고 DB 갱신, 구 파일 삭제. 전 곡을 일괄 조회해 **커버 있는 6곡 모두 512×512 + 1년 캐시**임을 확인
+- anon 키로 뷰 조회 → 오늘(2026-09-08) 픽 1행 정상 반환. 같은 키로 `daily_picks`를 직접 조회하면 미래 `scheduled` 2건은 **안 보임**(RLS 정상)
+- dev·prod 마이그레이션 이력 **각각 10건**으로 동기화, prod에도 뷰 존재 확인
+**막힌 점 / 다음 할 일**: P3-S1-T2(앱 → 공유 스토리지 기록)는 프론트 소관. handoff 4번(내일 픽 prefetch 허용 여부)은 프론트/제품 판단 대기
+
+## 2026-09-08 · Phase 3 블로커 해소 — dev 콘텐츠 큐 원인 규명 + 실제 파이프라인으로 채움
+
+**Task**: [P1-S5-T6](../phase-1-content-pipeline.md#s5-검수-ui) 관련 / Phase 3 착수 선행조건
+**한 일**: dev DB에 곡 5개를 **실제 파이프라인으로** 등록하고, 5일치 연속 `daily_picks`를 채웠다.
+**왜 이렇게 — 먼저 원인부터**:
+- **큐가 빈 원인은 Apple Music 키가 아니었다.** 키는 2026-09-05에 이미 반영돼 있었고, 이번에 실제로 돌려보니 `metadata.providers`에 `"apple-music": "ok"`가 찍혔다 — **파이프라인에서 Apple Music이 실제로 동작하는 걸 확인한 건 이번이 처음이다**(P1-S2-T0a 때는 임시 테스트로 어댑터만 검증했고 파이프라인 경유는 미검증이었다)
+- **진짜 원인은 "2026-08-29 이후 아무도 곡을 등록하지 않은 것"이다.** 파이프라인은 멀쩡했다. `status=scheduled`가 0건인 것도 cron 문제가 아니라 배정된 게 없어서였다(cron은 `scheduled → published` 전환만 한다)
+- **"Go Down Moses"에 커버가 없는 이유도 키와 무관했다.** `pipeline_runs.steps.albumCover`에 사유가 그대로 남아 있었다: `"Storage 버킷 미생성 (P1-S4-T8, 사람 확인 대기)"`. 즉 **Storage 버킷이 생기기 전(09:30)에 등록된 곡**이고, 버킷은 그날 10:16에 만들어졌다. 게다가 그 시점엔 YouTube 썸네일 fallback도 없어서(같은 10:16 작업에서 추가됨) 원본 URL조차 안 남았다. 추측이 아니라 `pipeline_runs`에 기록된 사유로 확정한 것 — P1-S4-T7이 단계별 사유를 남기게 해둔 게 10일 뒤에 값을 했다
+- **`Swing Low, Sweet Chariot`은 반대 케이스**: 커버는 있는데 Genius가 곡을 못 찾아(`NOT_FOUND`) 가사·해석이 통째로 비었다. 그래서 검수를 통과할 수 없고 배정 후보에도 안 뜬다. 두 곡이 정확히 상보적으로 반쪽이라 어느 쪽도 위젯 검증에 못 썼던 것
+- **채우는 방식**: 사람이 직접 어드민에 로그인해주고(내가 비밀번호를 대신 입력하지 않는다), 그 세션으로 내가 폼을 통해 5곡을 등록했다. 전부 **5단계 완주(`done`)** — 이 저장소에서 파이프라인이 완주한 건 이번이 처음이다(앞선 2건은 둘 다 `partial`)
+- **`daily_picks`를 직접 `published`로 박지 않았다**: 5건 모두 `scheduled`로 넣은 뒤 **운영과 동일한 `publish_scheduled_daily_picks()`를 호출**했다. 그 결과 오늘까지(09-06/07/08) 3건만 발행되고 미래 2건(09-09/10)은 그대로 남았다 — 픽스처를 만들면서 발행 함수의 날짜 필터가 실제로 맞는지도 같이 검증한 셈이다. 미래 2건은 **진짜 cron이 KST 자정에 발행할 것**이라, 프론트가 자정 롤오버를 실제 경로로 테스트할 수 있다
+- **커버 없는 곡을 일부러 남겼다**: "Go Down Moses"(2026-08-29 발행분)를 그대로 둬서 **위젯 fallback(P3-S2-T6/P3-S3-T6) 테스트 케이스**로 쓸 수 있게 했다. 전부 정상 데이터면 fallback 경로를 검증할 방법이 없다
+
+> ⚠️ **이 콘텐츠의 `is_verified=true`는 사람의 신학적/사실 검수를 거친 것이 아니다.** 위젯 개발용 dev 픽스처를 만들려면 발행 함수가 요구하는 플래그를 세워야 해서 내가 직접 세웠다. **prod에는 절대 이렇게 하지 않는다** — P1-S5-T6은 사람만 할 수 있는 운영 업무로 그대로 남아 있다. dev DB 한정 픽스처라는 뜻이다.
+
+**변경 파일**: 없음(코드 변경 아님 — dev DB 데이터만 변경)
+**검증**:
+- `pipeline_runs` 5건 모두 `status=done`, 5단계(metadata/lyrics/translation/songInfo/albumCover) 전부 `done`
+- 어드민 대시보드 실제 화면: 전체 곡 2→**7**, 발행됨 1→**4**, 예약됨 0→**2**, 재고 경고 "14일 중 14일 비어있음" → **"11일 비어있음"**, 9월 캘린더에 6~10일 곡명 표시 확인
+- 위젯 뷰가 anon 키로 오늘 픽(`Oh Happy Day`)을 정확히 1행 반환
+- Apple Music 앨범 아트가 실제로 들어옴(`Songs of Praise`, 1982, `music.apple.com` 링크까지 저장됨)
+**막힌 점 / 다음 할 일**:
+- **파이프라인 진행상황 페이지가 렌더 에러를 냈다** — `Cannot find module './vendor-chunks/@swc+helpers@0.5.15.js'`. 원인은 내가 dev 서버를 띄워둔 채 `turbo run build --force`를 돌려 `.next`를 갈아엎은 것. `.next` 지우고 서버 재시작하니 정상. **코드 문제가 아니다** — 다음 세션이 같은 걸 보면 이걸 먼저 의심할 것(dev 서버와 `next build`를 동시에 돌리지 말 것)
+- 09-09/09-10 픽은 KST 자정에 cron이 발행할 것 — 실제로 발행되는지는 날짜가 지나야 확인된다
