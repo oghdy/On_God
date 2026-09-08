@@ -350,7 +350,23 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      // P3-S1-T1: 위젯 전용 읽기 계약(`20260908090000_widget_today_pick_view.sql`).
+      // 뷰가 KST 자정 기준 오늘의 published 픽만 0~1행으로 내려준다. 이 파일은 Docker
+      // 부재로 CLI 자동생성 대신 마이그레이션 SQL을 보고 손으로 유지하는 중이라,
+      // 뷰를 추가할 때도 여기 같이 적어야 한다(안 그러면 `.from("widget_today_pick")`이
+      // 타입 에러가 난다).
+      widget_today_pick: {
+        Row: {
+          album_cover_url: string | null
+          artist: string
+          pick_date: string
+          published_at: string | null
+          song_id: string
+          title: string
+          widget_image_url: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

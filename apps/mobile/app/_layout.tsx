@@ -13,6 +13,7 @@ import { asyncStoragePersister } from "../lib/query/persister";
 import { queryClient } from "../lib/query/client";
 import { AuthProvider } from "../lib/auth/AuthProvider";
 import { Sentry, initSentry } from "../lib/sentry";
+import { syncWidget } from "../lib/widget/syncWidget";
 
 // 딥링크로 /lyrics/... 등에 바로 진입해도 뒤로가기 스택이 index부터 쌓이도록 한다.
 export const unstable_settings = { initialRouteName: "index" };
@@ -27,6 +28,12 @@ function RootLayout() {
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
+
+  // P3-S1-T2: 앱이 뜰 때 오늘 곡을 위젯에 넘긴다. 자정 갱신은 백그라운드 fetch로
+  // 별도 처리한다(P3-S4-T1) — 여기는 "앱을 열면 위젯도 최신이 된다"를 보장하는 경로다.
+  useEffect(() => {
+    void syncWidget();
+  }, []);
 
   if (!ready) return null;
 
