@@ -288,3 +288,32 @@
 - Android 첫 렌더 1030ms는 iOS(372ms)보다 느리지만 SRS 4.2 목표(2000ms) 안이고, 에뮬레이터 + 콜드 스타트 조건이라 그대로 둠. 실기기 측정은 사람 몫.
 - Android는 Expo Go로만 확인했다 — 스트리밍 앱 스킴(`youtube://` 등)의 Android 패키지 가시성(`<queries>`, P2-S5 로그 참고)은 여전히 미검증. EAS 개발 빌드 이후 과제.
 - 남은 것: admin typecheck `.next/types` 레이스(로컬 한정, backend 트랙), React 18/19 공존 부채(Expo SDK 53+ 업그레이드로 해소).
+
+## 2026-09-08 · P0-S7-T1~T7 — Expo SDK 52 → 57 업그레이드 (React 19 통일, ADR-0006·0007 부채 청산)
+
+**Task**: [P0-S7](../phase-0-foundation.md#s7-런타임-업그레이드-expo-sdk-57--react-19-통일)
+**한 일**:
+- **P0-S7-T1 사전 조사**: SDK 52가 최신(57)보다 5개 메이저 뒤처져 있음을 확인. npm 레지스트리와 각 SDK의 `bundledNativeModules.json`을 직접 조회해 SDK↔RN↔React↔expo-router 매트릭스를 만들고, 우리 의존성 20개 중 19개가 바뀜을 대조. 스크래치 디렉터리에 SDK 57 조합으로 `package.json`을 만들어 **실제 설치를 돌려 충돌 0을 확인**한 뒤 착수(추측으로 시작하지 않기 위해).
+- **P0-S7-T2/T3**: `apps/mobile` 의존성을 SDK 57로 일괄 상승. expo-router 57이 요구하는 `react-native-reanimated`·`react-native-worklets`·`react-native-gesture-handler`·`react-dom`을 신규 추가. `@expo/metro-runtime`은 peer라 락파일에 SDK 52 시절 4.0.1이 굳어 있어 명시적으로 올림.
+- **P0-S7-T4 (핵심)**: 루트 `package.json`의 React 18 고정 3줄과 `pnpm-workspace.yaml`의 `packageExtensions`(next에 React 19 타입 주입)를 **전부 제거**. 대신 `pnpm-workspace.yaml`에 `overrides`로 react/react-dom/@types/react(-dom) 버전을 한 곳에서 강제. **관리 지점 다섯 곳 → 한 곳.**
+- **P0-S7-T5 코드 마이그레이션**: 5개 메이저를 건너뛰었는데 수정은 두 곳뿐. (1) `StyleSheet.absoluteFillObject` 제거(RN 0.86) → `absoluteFill`로 교체 3곳. (2) **expo-router 57에서 `<Stack>`의 자식 선언이 라우트 목록이 되는 변경** → 아래 참고.
+- **P0-S7-T6**: iOS·Android 양쪽 Expo Go 57.0.9로 종단 검증.
+- **P0-S7-T7**: [ADR-0008](../decisions/0008-expo-sdk-57-react-19.md) 작성, ADR-0006·0007을 Superseded로 표시, OVERVIEW 갱신, handoff 통지.
+**왜 이렇게**:
+- **52→57 직행을 택했다.** Expo 공식 권장은 한 SDK씩이지만, 조사에서 (a) 신 아키텍처가 이미 켜져 있고(`newArchEnabled: true` + 런타임 `Bridgeless mode is enabled`) (b) 네이티브 폴더가 아예 없고(관리형) (c) 공유 패키지가 React를 전혀 안 쓰고 (d) 앱이 34파일에 expo-router API를 얕게만 쓰고 (e) 의존성 조합이 실제로 해결됨을 확인했으므로, 다섯 번의 재설치·검증 사이클이 이득보다 비용이 크다고 판단. 브랜치(`frontend/expo-sdk-57`)에서 진행하고 실패 시 SDK 54 경유로 후퇴할 계획이었으나 후퇴 없이 완료.
+- **`overrides`를 쓴 이유**: 메이저가 19로 통일돼도 mobile은 Expo가 정한 `19.2.3`, admin은 `^19.0.0`(→19.2.8)이라 **두 사본이 생긴다**. 업그레이드 직후 실제로 그 상태를 관측했다. 메이저가 같아도 인스턴스가 둘이면 ADR-0007과 똑같이 깨지므로, "운 좋게 안 겹치는" 상태로 두지 않고 한 곳에서 못 박았다.
+- **TypeScript 6.0 권장은 따르지 않았다.** `expo install --check`가 `~6.0.3`을 권하지만 TS는 admin·packages가 함께 쓰는 저장소 전체 의존성이라, SDK 업그레이드에 끼워 넣으면 범위가 흐려지고 백엔드 트랙에 예고 없이 파급된다. 5.9.3으로 20/20 통과함을 확인하고 별건으로 분리(handoff에 남김).
+**변경 파일**: `apps/mobile/package.json`, `apps/mobile/app/_layout.tsx`, `apps/mobile/components/daily-card/DailyCard.tsx`, `pnpm-workspace.yaml`, `package.json`(루트), `pnpm-lock.yaml`, `docs/decisions/0008-expo-sdk-57-react-19.md`(신규), `docs/decisions/{0006,0007}-*.md`(Superseded 표시), `docs/OVERVIEW.md`, `docs/phase-0-foundation.md`, `docs/logs/handoff.md`
+**검증**:
+- **React 사본**: 깨끗이 재설치 후 저장소 전체에 `react@19.2.3` **하나만** 존재(`node_modules/.pnpm` 실측). `scripts/check-single-react.mjs` 통과.
+- `pnpm turbo run typecheck lint test build --force --concurrency=1` **20/20**(admin `next build` 포함). `packageExtensions`를 지웠는데도 admin 타입체크가 통과 — ADR-0006 장치가 정말로 불필요해졌음을 확인.
+- **iOS**(Expo Go 57.0.9, iPhone 16 Pro): 오늘 카드(폰트·그라디언트·YouTube 버튼) · 스와이프 · 가사 원문/해석 탭 · 뒤로가기 정상. 첫 렌더 531~884ms.
+- **Android**(Expo Go 57.0.9, Pixel 2 / API 35): 위와 동일 + `/profile` 딥링크 모달 정상. 첫 렌더 921~936ms.
+- 양쪽 콘솔 에러 0건(기존 Sentry DSN 미설정 경고만).
+**막힌 점 / 다음 할 일**:
+- **Android 전용 회귀를 하나 만들었다가 잡았다 — 기록해둘 가치가 있다.** 기존 `_layout.tsx`는 모달 옵션만 주려고 `<Stack>` 안에 `<Stack.Screen name="profile">` 하나만 뒀는데, expo-router 57에서는 **자식을 선언하면 그것이 라우트 목록**이 되어 `profile`이 첫 화면이 됐다. **Android에서 `index.tsx`가 한 번도 렌더되지 않고** 앱을 열면 곧장 로그인 화면이 떴다. iOS에서는 증상이 없어서 iOS만 봤으면 놓쳤을 것이다. 타입체크·lint·테스트·`next build` 전부 통과했다.
+  - 진단은 스크린샷이 아니라 **로그로 확정**했다: `app/index.tsx`가 남기는 `[perf] today-screen-first-content` 줄이 SDK 52 Android와 SDK 57 iOS에는 있는데 SDK 57 Android에만 없었다. Expo Go 데이터를 완전히 지우고(`pm clear`) 재실행해도 동일해 네비게이션 상태 복원이 아님을 확인했고, 자식 선언을 빼자 바로 렌더되는 것으로 원인을 격리했다.
+  - 수정: 라우트를 전부 명시하고 `index`를 맨 앞에. 딥링크로 하위 라우트에 바로 진입해도 뒤로가기 스택이 index부터 쌓이도록 `unstable_settings.initialRouteName`도 선언.
+- **TypeScript 6.0**은 미적용(위 "왜 이렇게" 참고) — 저장소 전체 영향이라 backend와 합의 후 별도 Task로.
+- **`react-native-web`**은 넣지 않았다(SDK 57 템플릿엔 있음). 웹 타깃이 아니라 필요할 때 추가.
+- 이제 Phase 3(위젯) 착수 조건이 갖춰졌다 — `expo prebuild`로 네이티브 프로젝트를 생성해도 최신 RN 기준이라 나중에 재조정할 일이 없다. 🧑 실기기 Expo Go 테스트도 이제 가능(App Store 최신 Expo Go = SDK 57).

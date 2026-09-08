@@ -1,6 +1,7 @@
 # ADR-0006 — pnpm 링커: isolated + `shamefully-hoist` (React 18/19 공존)
 
-- 상태: 채택(Accepted)
+- 상태: **대체됨(Superseded)** — 원래 채택(Accepted)
+- **대체됨: [ADR-0008 — Expo SDK 57 / React 19 통일](./0008-expo-sdk-57-react-19.md)** — 저장소 전체가 React 19로 통일되면서 이 ADR이 도입한 장치는 **전부 제거됐다.** React 메이저가 하나뿐이면 "어느 React가 루트로 호이스팅되는가"라는 문제 자체가 성립하지 않는다. 현재 유효한 장치는 `pnpm-workspace.yaml`의 `overrides` 네 줄뿐이다.
 - 일자: 2026-09-07
 - 대체 대상: [ADR-0005 — pnpm `node-linker=hoisted`](./0005-pnpm-hoisted-linker.md) (superseded by this ADR)
 - 관련: [handoff 2026-09-01 frontend → backend](../logs/handoff.md), [backend-log 2026-09-07](../logs/backend-log.md)

@@ -34,18 +34,18 @@ export function DailyCard({ pick }: DailyCardProps) {
           placeholderContentFit="cover"
           contentFit="cover"
           transition={300}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
         />
       ) : (
         // Apple Music 키 미발급 등으로 앨범커버가 아직 없는 곡(handoff 참고) — 무음 placeholder.
-        <View style={[StyleSheet.absoluteFillObject, styles.noCover]}>
+        <View style={[StyleSheet.absoluteFill, styles.noCover]}>
           <Ionicons name="musical-notes" size={64} color={theme.textDisabled} />
         </View>
       )}
       <LinearGradient
         colors={["transparent", "rgba(0,0,0,0.55)", "rgba(0,0,0,0.92)"]}
         locations={[0, 0.55, 1]}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
       <Pressable
         onPress={() => router.push("/profile")}

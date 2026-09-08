@@ -13,7 +13,7 @@
 - [x] S4. 외부 서비스 추상화 레이어
 - [ ] S5. 환경·시크릿 관리 (T4만 남음 — Phase 1 외부 API 키 발급 후)
 - [ ] S6. CI/CD 기초
-- [ ] S7. 런타임 업그레이드 (Expo SDK 57 / React 19 통일)
+- [x] S7. 런타임 업그레이드 (Expo SDK 57 / React 19 통일)
 
 ---
 
@@ -201,13 +201,13 @@ Expo 공식 권장은 "한 SDK씩"이지만, 위 조건 1~5를 근거로 **52 �
 
 ### Task
 
-- [ ] 🤖 **P0-S7-T1** — 사전 호환성 조사 (SDK/RN/React 매트릭스, 의존성 대조, 실제 해결 검증)
-- [ ] 🤖 **P0-S7-T2** — Expo SDK 57로 `apps/mobile` 의존성 일괄 상승
-- [ ] 🤖 **P0-S7-T3** — expo-router 57 신규 필수 의존성(reanimated·worklets·gesture-handler) 추가 + babel 설정
-- [ ] 🤖 **P0-S7-T4** — 루트 React 고정 장치 정리: 18→19 통일, `packageExtensions` 제거 검토 (**ADR-0006·0007 부채 청산**)
-- [ ] 🤖 **P0-S7-T5** — 코드 마이그레이션 (React 19 / expo-router / safe-area-context 5 / Sentry 7 / splash-screen / Android edge-to-edge)
-- [ ] 🤖 **P0-S7-T6** — iOS·Android 양쪽 실기동 종단 검증 (오늘 카드·스와이프·가사·로그인)
-- [ ] 🤖 **P0-S7-T7** — ADR-0008 작성 + ADR-0006·0007 폐기 처리 + [handoff](./logs/handoff.md) 통지
+- [x] 🤖 **P0-S7-T1** — 사전 호환성 조사 (SDK/RN/React 매트릭스, 의존성 대조, 실제 해결 검증)
+- [x] 🤖 **P0-S7-T2** — Expo SDK 57로 `apps/mobile` 의존성 일괄 상승
+- [x] 🤖 **P0-S7-T3** — expo-router 57 신규 필수 의존성(reanimated·worklets·gesture-handler) 추가 + babel 설정
+- [x] 🤖 **P0-S7-T4** — 루트 React 고정 장치 정리: 18→19 통일, `packageExtensions` 제거 검토 (**ADR-0006·0007 부채 청산**)
+- [x] 🤖 **P0-S7-T5** — 코드 마이그레이션 (React 19 / expo-router / safe-area-context 5 / Sentry 7 / splash-screen / Android edge-to-edge)
+- [x] 🤖 **P0-S7-T6** — iOS·Android 양쪽 실기동 종단 검증 (오늘 카드·스와이프·가사·로그인)
+- [x] 🤖 **P0-S7-T7** — ADR-0008 작성 + ADR-0006·0007 폐기 처리 + [handoff](./logs/handoff.md) 통지 ([로그](./logs/frontend-log.md#2026-09-08--p0-s7-t1t7--expo-sdk-52--57-업그레이드-react-19-통일-adr-00060007-부채-청산))
 
 > 🧑 **사람 몫**: 업그레이드 진행 승인(완료). 이후 실기기 Expo Go 테스트 — SDK 57이 되면
 > App Store의 최신 Expo Go로 실제 폰에서 열 수 있게 된다(지금은 불가).
