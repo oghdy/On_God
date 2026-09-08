@@ -13,6 +13,7 @@
 - [x] S4. 외부 서비스 추상화 레이어
 - [ ] S5. 환경·시크릿 관리 (T4만 남음 — Phase 1 외부 API 키 발급 후)
 - [ ] S6. CI/CD 기초
+- [ ] S7. 런타임 업그레이드 (Expo SDK 57 / React 19 통일)
 
 ---
 
@@ -146,6 +147,70 @@ apps/admin  ─┼─▶ integrations ─▶ db ─▶ core ◀── (core는 �
   *React 18(mobile)/19(admin) 공존 + hoisted 링커 조합이 원인. `pnpm turbo run typecheck lint test build` 20/20 통과로 검증, `apps/mobile`은 실제 Metro 번들 생성(`expo export`)으로 무결성 확인*
 
 > GitHub 연동은 P0-S2 이전에 이미 완료됨 — `origin` → `github.com/oghdy/On_God`, `main`에 push까지 됨.
+
+---
+
+## S7. 런타임 업그레이드 (Expo SDK 57 / React 19 통일)
+
+> **왜 Phase 0인가**: `docs/OVERVIEW.md`가 Phase를 "출시 마일스톤 단위"로 정의한다. 이 작업은
+> 새 기능이나 마일스톤이 아니라 **기반 정비**라 별도 Phase(2.5 등)를 만드는 건 정의에 안 맞는다.
+> 반면 Phase 0은 "앱·어드민·백엔드가 공유하는 뼈대"이고, 런타임 버전(Expo SDK / React / RN)은
+> 정확히 그 뼈대다. 무엇보다 이 작업이 청산하려는 부채(ADR-0005 → 0006 → 0007)가 전부
+> 바로 위 S6에 기록돼 있어, 같은 Phase에 이어 붙는 게 이력을 읽기에 가장 자연스럽다.
+
+> **왜 지금(Phase 3 이전)인가**: Phase 3(위젯)은 ADR-0004대로 `expo prebuild` + Config Plugin +
+> 네이티브 SwiftUI/Kotlin 코드를 요구한다. 지금은 `apps/mobile`에 `ios/`·`android/` 폴더가
+> **아예 없어서**(관리형 워크플로) 업그레이드로 조정할 네이티브 코드가 0줄이다. Phase 3 이후로
+> 미루면 생성된 네이티브 프로젝트와 위젯 코드를 RN 5개 메이저 변화에 맞춰 전부 재조정해야 한다.
+> 추가로, Expo Go 클라이언트는 SDK별로 분리돼 있고 App Store에는 최신 하나만 올라오므로
+> **SDK 52로는 실기기 Expo Go 테스트가 불가능하다**(🧑 사람 몫 항목의 선행 조건).
+
+> **완료 정의(DoD)**: `apps/mobile`이 Expo SDK 57 / React 19 / RN 0.86에서 iOS·Android 양쪽
+> 실기동하고, 루트의 React 18 고정 장치(ADR-0006·0007이 만든 다섯 곳 관리 부담)가 전부 제거되며,
+> `pnpm turbo run typecheck lint test build`가 admin 포함 전부 통과한다.
+
+### 사전 조사 결과 (P0-S7-T1에서 확인한 사실)
+
+| 항목 | 현재(SDK 52) | 목표(SDK 57) |
+|------|--------------|--------------|
+| React Native | 0.76.9 | 0.86.3 |
+| React | **18.3.1** | **19.2.3** |
+| expo-router | 4.0.22 | 57.0.19 |
+
+업그레이드에 **유리하게 작용하는 조건** (조사로 확인):
+
+1. **신 아키텍처가 이미 켜져 있다** — `app.json`의 `newArchEnabled: true`, 런타임 로그의
+   `Bridgeless mode is enabled`. RN 0.82에서 구 아키텍처가 제거됐는데 해당 없음.
+2. **네이티브 폴더가 없다** — `apps/mobile/ios`·`android` 둘 다 부재(관리형 워크플로).
+3. **공유 패키지가 React를 전혀 안 쓴다** — `core`/`db`/`ui-tokens`/`config`/`integrations`
+   다섯 개 모두 React 의존 0. React 18→19가 백엔드 트랙 코드에 파급되지 않는다.
+4. **앱이 작고 API를 얕게 쓴다** — 34개 파일. expo-router 사용 API가 `useRouter`,
+   `router.push`/`back`, `useLocalSearchParams`, `Stack.Screen`, `presentation: modal`뿐이고
+   전부 4~57 내내 유지된 것들.
+5. **의존성 조합이 실제로 해결된다** — 스크래치에 SDK 57 조합을 만들어 실제 설치 검증(충돌 0).
+
+주의할 지점: expo-router 57이 `react-native-reanimated`·`react-native-worklets`·
+`gesture-handler`를 새로 요구 / Android edge-to-edge가 SDK 54부터 강제(우리는 이미 전 화면
+`useSafeAreaInsets` 사용) / Sentry 6→7 / AsyncStorage 1→2 / safe-area-context 4→5.
+
+### 접근 방식
+
+Expo 공식 권장은 "한 SDK씩"이지만, 위 조건 1~5를 근거로 **52 → 57 직행**을 택한다. 이 규모
+앱에서 다섯 번의 재설치·검증 사이클은 이득보다 비용이 크다. 브랜치(`frontend/expo-sdk-57`)에서
+진행하고, 직행이 실패하면 SDK 54를 경유하는 2단계로 후퇴한다.
+
+### Task
+
+- [ ] 🤖 **P0-S7-T1** — 사전 호환성 조사 (SDK/RN/React 매트릭스, 의존성 대조, 실제 해결 검증)
+- [ ] 🤖 **P0-S7-T2** — Expo SDK 57로 `apps/mobile` 의존성 일괄 상승
+- [ ] 🤖 **P0-S7-T3** — expo-router 57 신규 필수 의존성(reanimated·worklets·gesture-handler) 추가 + babel 설정
+- [ ] 🤖 **P0-S7-T4** — 루트 React 고정 장치 정리: 18→19 통일, `packageExtensions` 제거 검토 (**ADR-0006·0007 부채 청산**)
+- [ ] 🤖 **P0-S7-T5** — 코드 마이그레이션 (React 19 / expo-router / safe-area-context 5 / Sentry 7 / splash-screen / Android edge-to-edge)
+- [ ] 🤖 **P0-S7-T6** — iOS·Android 양쪽 실기동 종단 검증 (오늘 카드·스와이프·가사·로그인)
+- [ ] 🤖 **P0-S7-T7** — ADR-0008 작성 + ADR-0006·0007 폐기 처리 + [handoff](./logs/handoff.md) 통지
+
+> 🧑 **사람 몫**: 업그레이드 진행 승인(완료). 이후 실기기 Expo Go 테스트 — SDK 57이 되면
+> App Store의 최신 Expo Go로 실제 폰에서 열 수 있게 된다(지금은 불가).
 
 ---
 
