@@ -333,3 +333,33 @@
 **막힌 점 / 다음 할 일**:
 - **내 검증이 틀렸던 것을 정정한다.** P0-S6-T6c에서 build 스텝을 넣을 때 "env 없이도 빌드된다"고 판단했는데, 로컬 검증을 `env -i`로 **셸 환경만** 비우고 했다. Next.js가 디스크의 `apps/admin/.env.local`을 자동으로 읽고 있어서 통과한 것이었다. `handoff.md`의 해당 문장도 정정해뒀다. 교훈: **env 관련 검증은 셸 환경만이 아니라 파일까지 실제로 치우고 해야 한다.**
 - 이 건으로 P0-S6-T6c에서 넣은 두 스텝(React 검사·build)이 **처음으로 실제 실행됐고 둘 다 통과**했다.
+
+## 2026-09-08 · P3-S1-T2 — 위젯 데이터 전달 + ADR-0009 (expo-widgets 채택)
+
+**Task**: [P3-S1-T2](../phase-3-widget.md#s1-위젯-데이터-공급), 부수적으로 [P3-S2-T1/T2/T3/T5/T6](../phase-3-widget.md#s2-ios-위젯-widgetkit)
+**한 일**:
+- **환경(A)**: TypeScript 6.0.3로 올라간 상태에서 지우고 재설치. `typecheck lint test build`를 **`--concurrency=1` 없이** 돌려 20/20 확인 — 백엔드가 고쳤다는 `.next/types` 레이스가 실제로 사라졌다.
+- **P3-S1-T2 (B)**: 계약 구현. 백엔드 handoff의 필드표대로 `widget_today_pick` 뷰를 읽고 위젯 페이로드를 만든다.
+  - `packages/core/src/domain/widget.ts` — 페이로드 타입 + **이미지 폴백 3단계**(위젯512 → 커버600 → null). 앱·iOS·Android가 같은 모양을 봐야 해서 mobile이 아니라 공유 패키지에 뒀다(원칙 3). **날짜 계산이 없는 것은 의도된 것** — 뷰가 KST 자정 기준으로 서버에서 거른다.
+  - `apps/mobile/lib/widget/{fetchWidgetPayload,syncWidget}.ts` — 조회와 전달을 분리. `app/_layout.tsx`에서 기동 시 1회 동기화.
+  - `packages/db`의 DB 타입에 `widget_today_pick` 뷰를 추가했다(백엔드가 마이그레이션만 넣고 타입 반영을 안 해 `.from()`이 타입 에러였다).
+- **ADR-0009 (D 아님 — 새로 발견한 구조적 결정)**: 공유 스토리지 접근 수단을 조사하다 **`expo-widgets`가 SDK 57 공식 모듈로 존재**하는 걸 발견. 사람에게 확인받고 **iOS는 expo-widgets, Android는 ADR-0004대로 Glance 직접 작성**으로 결정. [ADR-0009](../decisions/0009-widget-expo-widgets-ios-glance-android.md) 작성, ADR-0004는 iOS 한정 대체 표시.
+- **부수 진행**: `widgets/OnGodToday.tsx`(2×2 레이아웃 + `widgetURL` 딥링크 + 커버 없음 폴백), `app.json` 플러그인 설정(확정 식별자), 이미지 다운로드(`widgetsDirectory`).
+**왜 이렇게**:
+- **ADR-0004를 다시 열어본 이유**: 그 ADR이 기각한 것은 "RN 생태계 **서드파티**"였고 Expo **공식** 모듈은 당시 없었다. 전제가 바뀌었으므로 재판단이 맞다고 봤다. 다만 되돌리기 어려운 결정이라 CLAUDE.md대로 진행 전에 사람에게 확인받았다.
+- **판단 전에 패키지를 실제로 뜯어봤다.** README만 봤으면 "iOS 위젯 라이브러리"로 읽고 Android를 포기할 뻔했고, `expo-module.config.json`만 봤으면 `platforms: ["apple","android"]`를 보고 양 플랫폼 지원으로 오해할 뻔했다. **Kotlin 소스를 열어보니 `WidgetsModule.kt`는 10줄짜리 빈 껍데기고 Glance 위젯은 `Text(widgetName)`만 그린다.** 이 사실 하나가 결정을 갈랐다.
+- **전달 지점을 seam으로 먼저 만들고 나중에 채웠다.** 결정이 나기 전에 조회·페이로드까지는 확정이었으므로 그 부분을 먼저 구현·검증하고 커밋했다(`1ec8163`). 결과적으로 ADR-0009의 플랫폼 분기가 `deliverWidgetPayload` 한 함수 안에만 생겼다.
+- **관리형 워크플로를 유지했다.** `expo prebuild`는 검증 목적으로만 돌리고 생성된 `ios/`를 지웠다. `.gitignore`에 이미 `ios/`·`android/`가 있고, EAS Build가 빌드 시점에 prebuild한다 — 생성물을 커밋하면 Config Plugin 변경이 반영 안 되는 함정이 생긴다.
+**변경 파일**: `packages/core/src/domain/{widget.ts,widget.test.ts}`(신규), `packages/core/src/index.ts`, `packages/db/src/types/database.ts`, `apps/mobile/lib/widget/{fetchWidgetPayload,syncWidget}.ts`(신규), `apps/mobile/widgets/OnGodToday.tsx`(신규), `apps/mobile/app/_layout.tsx`, `apps/mobile/app.json`, `apps/mobile/package.json`, `docs/decisions/0009-*.md`(신규), `docs/decisions/0004-widget-native.md`, `docs/OVERVIEW.md`, `docs/phase-3-widget.md`
+**검증**:
+- `pnpm turbo run typecheck lint test` **19/19**, `@ongod/core` 위젯 테스트 7개(폴백 3단계·빈 문자열·0행) 통과.
+- **실제 dev 데이터로 파이프라인 확인**: iOS 시뮬레이터에서 `[widget] payload {"title":"Oh Happy Day","hasImage":true,"pickDate":"2026-09-08"}`.
+- **이미지 계약 실측**: `widget.webp` 512×512 36KB, `cover.webp` 600×600 46KB, 둘 다 `Cache-Control` 1년. 백엔드 문서와 일치.
+- **`expo prebuild --platform ios`로 Config Plugin 산출물 검증**: 위젯 타깃 `ExpoWidgetsTarget` 생성, **앱·위젯 양쪽 entitlements에 `group.com.ongod.app`**, `PRODUCT_BUNDLE_IDENTIFIER = com.ongod.app.widget`, `OnGodToday.swift`에 `.configurationDisplayName("오늘의 곡")` + `.supportedFamilies([.systemSmall])`. 전부 사람이 등록한 값과 일치. 확인 후 `ios/` 삭제.
+- **Expo Go에서 에러 0건.** 처음엔 `Cannot find native module 'ExpoWidgets'` ERROR가 두 번 떴는데(내가 코드 주석에 "조용히 실패한다"고 써놓고 실제로는 시끄러웠다), `requireOptionalNativeModule("ExpoWidgets")`로 능력을 직접 확인해 건너뛰도록 고쳤다. 지금은 안내 로그 한 줄만 남는다.
+**막힌 점 / 다음 할 일**:
+- **위젯이 실제로 그려지는 건 아직 못 봤다.** Expo Go로는 위젯이 안 뜬다. 확인된 것은 "Config Plugin이 올바른 네이티브 구성을 만든다"와 "앱이 안 깨진다"까지다. **EAS 개발 빌드가 다음 관문**이고, 홈 화면 추가·자정 갱신·탭은 실기기(P3-S2-T7, 🧑)에서만 확인된다.
+- 환경 판별에 `Constants.executionEnvironment`를 쓰면 안 된다 — Expo Go와 dev client가 **둘 다 `storeClient`**라 구분이 안 된다. 능력 기반(`requireOptionalNativeModule`)이 맞다.
+- 위젯 레이아웃은 **별도 JS 컨텍스트에서 실행**돼 앱 코드를 import할 수 없다. `@ongod/ui-tokens`조차 못 써서 색을 리터럴로 박았다 — 중복은 의도된 것이고, 토큰을 import하면 위젯이 터진다.
+- **D(자정 갱신 공백) 판단은 아직 안 했다.** 백엔드 제안대로 (a)를 기본으로 두고, P3-S4-T1/T2에서 실제 체감을 본 뒤 결정한다. prefetch가 필요하면 handoff로 요청할 것.
+- 다음: P3-S2-T4(자정 갱신 타임라인) → EAS 개발 빌드 → 실기기 검증 → P3-S3(Android Glance).

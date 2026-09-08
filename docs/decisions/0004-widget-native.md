@@ -1,6 +1,7 @@
 # ADR-0004 — 위젯: 네이티브 직접 작성 (Expo Config Plugin)
 
-- 상태: 채택(Accepted)
+- 상태: **일부 대체됨(Partially superseded)** — 원래 채택(Accepted)
+- **iOS는 [ADR-0009](./0009-widget-expo-widgets-ios-glance-android.md)로 대체됨** — SDK 57에 Expo 공식 모듈 `expo-widgets`가 생겨 iOS 위젯을 TSX로 쓸 수 있게 됐다(이 ADR이 기각한 대상은 서드파티 라이브러리였고 공식 모듈은 당시 없었다). **Android는 이 ADR 그대로** Glance 직접 작성이다 — expo-widgets의 Android Glance 렌더가 아직 스텁이기 때문.
 - 일자: 2026-06-28
 - 관련: Phase 3 전체, SRS 8장 미결사항
 

@@ -213,7 +213,7 @@ anon 키로 조회된다(게스트 모드에서도 위젯이 동작해야 하므
 `widget_image_url` → (null이면) `album_cover_url` → (null이면) 앱 내장 플레이스홀더. 세 번째까지 갈 수 있다는 걸 꼭 처리해달라 — **지금 dev의 "Go Down Moses"가 실제로 커버가 아예 없는 케이스다**(Storage 버킷이 생기기 전에 등록된 곡이라 그렇다. 원인은 [backend-log 2026-09-08](./backend-log.md) 참고).
 
 **관련**: `supabase/migrations/20260908090000_widget_today_pick_view.sql`, `apps/admin/lib/pipeline/album-cover.ts`, [phase-3-widget.md S1](../phase-3-widget.md#s1-위젯-데이터-공급)
-**상태**: [ ] 미해결 (프론트가 P3-S1-T2 시작 시 이 계약대로 구현 + 4번 판단)
+**상태**: [x] 처리완료 — 프론트 세션, 2026-09-08. 계약대로 구현했다(뷰 조회·필드·폴백 3단계·딥링크 상수 전부). **실측으로 계약 검증**: `widget.webp` 512×512 36KB / `cover.webp` 600×600 46KB / 둘 다 `Cache-Control` 1년 — 문서와 일치. 날짜는 클라이언트에서 계산하지 않고 뷰에 맡겼다. **4번(자정 갱신 공백)은 (a) 그대로 두기를 기본으로 유지하고 아직 확정하지 않았다** — P3-S4-T1/T2에서 실제 체감을 본 뒤 결정하고, prefetch가 필요하면 새 handoff로 요청하겠다. 다만 **`packages/db`의 DB 타입에 뷰가 빠져 있어** `.from("widget_today_pick")`이 타입 에러였다 — 아래 새 항목 참고.
 
 ## 2026-09-08 · backend → frontend (2차)
 
@@ -249,4 +249,31 @@ anon 키로 조회된다(게스트 모드에서도 위젯이 동작해야 하므
 - `ref` 기반 클릭이 실제 버튼 위치와 어긋날 수 있다(read_page의 뷰포트 568×718 vs 스크린샷 프레임 800×1011). **스크린샷으로 좌표를 확인해 클릭하는 편이 안전하다.**
 
 **관련**: [backend-log 2026-09-08](./backend-log.md#2026-09-08--p1-s5-t6-지원--2주치-콘텐츠-확보-dev-파이프라인-성공률-실측), [human-actions P3-S2-T1](../human-actions.md)
-**상태**: [ ] 미해결 (읽고 확인 — Phase 3 S2 착수 가능 상태)
+**상태**: [x] 처리완료 — 프론트 세션, 2026-09-08. 확정 식별자 3개를 Config Plugin 설정에 그대로 박고 `expo prebuild`로 **실제 생성물까지 확인**했다(앱·위젯 양쪽 entitlements에 `group.com.ongod.app`, 번들 ID `com.ongod.app.widget`). dev 콘텐츠도 잘 쓰고 있다 — 오늘(9/8) 픽이 뷰로 정상 조회되고 앱에도 뜬다. 어드민 폼 함정(3번)은 이번에 브라우저 조작을 안 해서 겪지 않았지만 기록해뒀다.
+
+## 2026-09-08 · frontend → backend
+
+**변경**: 위젯 구현 방식이 iOS만 바뀌었다 — [ADR-0009](../decisions/0009-widget-expo-widgets-ios-glance-android.md). **백엔드 산출물(뷰·이미지 규격·계약)은 그대로 쓰며 바뀐 것이 없다.** 백엔드가 조치할 것은 아래 1번 하나뿐이다.
+
+### 1. 조치 필요 — `packages/db` DB 타입에 뷰가 빠져 있었다
+
+`20260908090000_widget_today_pick_view.sql`은 dev·prod에 적용됐는데 `packages/db/src/types/database.ts`의 `Views`가 `[_ in never]: never` 그대로였다. 그래서 `supabase.from("widget_today_pick")`이 타입 에러가 났다.
+
+**내가 손으로 추가해뒀다**(이 파일은 Docker 부재로 CLI 자동생성 대신 손으로 유지하는 중이라 같은 방식으로). 확인만 해주고, **앞으로 뷰·테이블을 추가할 때 이 파일도 같이 갱신해달라** — 마이그레이션만 넣으면 프론트에서 타입 에러로 막힌다.
+
+### 2. 참고 — 위젯 iOS 구현이 SwiftUI 직접 작성이 아니게 됐다
+
+SDK 57에 **Expo 공식 모듈 `expo-widgets`**가 있는 걸 발견해서, iOS 위젯은 TSX + `@expo/ui/swift-ui`로 쓰고 데이터도 `updateSnapshot`으로 넘긴다(App Group 배관을 모듈이 관리). **Android는 ADR-0004 그대로** Glance 직접 작성이다 — expo-widgets의 Android Glance 렌더가 아직 `Text(widgetName)`만 그리는 스텁이라서다.
+
+백엔드 쪽 계약에는 영향이 없다. `widget_today_pick` 뷰와 512×512 `widget.webp`를 그대로 쓴다.
+
+### 3. 아직 결정 안 한 것 — 자정 갱신 공백 (백엔드 handoff 4번)
+
+**(a) 그대로 두기를 기본으로 유지한다.** prefetch가 정말 필요한지는 P3-S4-T1/T2를 붙이고 실제 체감을 본 뒤 판단하는 게 맞다고 봤다. 필요해지면 뷰·RLS를 여는 요청을 새 handoff로 남기겠다. **지금은 백엔드가 할 일이 없다.**
+
+### 4. 알아둘 것 — 관리형 워크플로를 유지한다
+
+Phase 3에 네이티브가 들어가지만 `ios/`·`android/`를 커밋하지 않는다. `expo prebuild`는 검증용으로만 돌리고 지웠다(둘 다 `.gitignore`에 있음). EAS Build가 빌드 시점에 prebuild한다 — **생성물을 커밋하면 Config Plugin 변경이 반영되지 않는 함정이 생긴다.**
+
+**관련**: [ADR-0009](../decisions/0009-widget-expo-widgets-ios-glance-android.md), [frontend-log 2026-09-08](./frontend-log.md#2026-09-08--p3-s1-t2--위젯-데이터-전달--adr-0009-expo-widgets-채택)
+**상태**: [ ] 미해결 (1번만 확인, 2~4는 참고)

@@ -25,7 +25,28 @@
       "expo-router",
       "expo-font",
       "expo-apple-authentication",
-      "@sentry/react-native"
+      "@sentry/react-native",
+      [
+        "expo-widgets",
+        {
+          "bundleIdentifier": "com.ongod.app.widget",
+          "groupIdentifier": "group.com.ongod.app",
+          "enableAndroid": false,
+          "widgets": [
+            {
+              "name": "OnGodToday",
+              "displayName": "오늘의 곡",
+              "description": "오늘의 흑인영가 한 곡을 홈 화면에서 바로 봅니다.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall"
+                ],
+                "contentMarginsDisabled": true
+              }
+            }
+          ]
+        }
+      ]
     ],
     "extra": {
       "router": {
