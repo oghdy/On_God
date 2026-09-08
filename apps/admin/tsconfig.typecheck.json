@@ -1,0 +1,25 @@
+{
+  // `pnpm typecheck` 전용 설정 (P0-S6-T6d).
+  //
+  // 문제: `turbo run typecheck build`를 동시에 돌리면 `@ongod/admin:typecheck`가 간헐 실패한다.
+  // `next build`가 `.next/types`를 지웠다 다시 만드는 사이에 `tsc`가 그 파일들을 읽어서
+  // `error TS6053: File '.../.next/types/app/layout.ts' not found`가 난다.
+  //
+  // 해결: 타입체크 전용 설정에서 `.next`를 통째로 끊는다. 두 가지를 같이 해야 실제로 끊긴다 —
+  //   1. `exclude`에 `.next` 추가
+  //   2. `next-env.d.ts` 제외 + 그 안의 참조를 `types`로 직접 지정
+  //      (`next-env.d.ts`에는 `/// <reference path="./.next/types/routes.d.ts" />`가 들어 있는데,
+  //       `reference path`는 `exclude`를 무시하고 파일을 끌어온다. 1번만으로는 이 한 개가 남는다.)
+  //
+  // 잃는 것: `.next/types`가 주는 타입 라우트 검증(PageProps/LayoutProps/routes.d.ts).
+  // 저장소 전체로 보면 잃지 않는다 — `next build`가 자체 타입체크 단계에서 그대로 검증하고,
+  // CI는 `pnpm build`를 별도 스텝으로 돌린다.
+  //
+  // `tsconfig.json`은 Next.js와 에디터가 쓰는 그대로 두고 건드리지 않는다(Next가 직접
+  // 관리하는 파일이라 손대도 `next dev/build`가 도로 되돌린다).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["next", "next/image-types/global"]
+  },
+  "exclude": ["node_modules", ".next", "next-env.d.ts"]
+}
