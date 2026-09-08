@@ -37,4 +37,16 @@ jobs:
       # build를 typecheck와 같은 스텝에서 동시에 돌리면 next build가 .next/types를
       # 지웠다 다시 만드는 동안 admin typecheck가 TS6053으로 깨진다. 스텝을 나눠
       # 순차 실행하는 것으로 그 레이스를 피한다.
+      #
+      # env는 전부 **가짜 플레이스홀더**다. 진짜 시크릿이 아니고, 그럴 필요도 없다.
+      # 이 스텝의 목적은 "빌드가 끝까지 통과하는가"를 보는 것이지 실제 Supabase에
+      # 붙는 게 아니다(ADR-0006이 고쳤던 next build 깨짐 같은 회귀를 잡는 용도).
+      # admin은 페이지 데이터 수집 단계에서 env 스키마(zod)를 검증하므로, 형식만
+      # 맞는 값이 없으면 빌드 자체가 진행되지 않는다.
+      # 실제 배포 빌드는 Vercel이 진짜 값으로 수행한다(P0-S6-T4).
       - run: pnpm build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+          ADMIN_EMAILS: ci@example.com
