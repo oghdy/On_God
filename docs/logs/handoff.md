@@ -105,3 +105,32 @@
 **후속(2026-09-07, 프론트 세션)**: **CI에 `pnpm build` 스텝을 추가했다** — `typecheck`와 별도 스텝이라 순차 실행되므로 레이스가 성립하지 않고, 동시에 ADR-0006이 고쳤던 `next build` 깨짐도 이제 CI가 잡는다(env 없이 빌드되는 것 확인함). **즉 CI 쪽 구멍은 메워졌고, 남은 건 로컬에서 `pnpm turbo run typecheck lint test build`를 한 번에 돌릴 때 나는 레이스뿐이다.** 이건 여전히 admin `tsconfig.json`/`turbo.json` 소관이라 backend가 판단해주면 된다(급하지 않음 — 로컬에선 `--concurrency=1`로 우회 가능).
 **관련**: [frontend-log 2026-09-07](./frontend-log.md#2026-09-07--p0-s6-t6b--adr-0006-링커-전환-후-모바일-기동-검증--이중-react-회귀-수정), [frontend-log P0-S6-T6c](./frontend-log.md#2026-09-07--p0-s6-t6c--이중-react-회귀-방지-검사-ci-추가--android-검증)
 **상태**: [ ] 미해결 (우선순위 낮음 — CI는 이미 안전)
+
+## 2026-09-08 · frontend → backend
+
+**변경**: `apps/mobile`을 **Expo SDK 52 → 57**(React 18.3.1 → 19.2.3, RN 0.76.9 → 0.86.3)로 올렸다([P0-S7](../phase-0-foundation.md#s7-런타임-업그레이드-expo-sdk-57--react-19-통일), [ADR-0008](../decisions/0008-expo-sdk-57-react-19.md)). **어드민 코드와 공유 패키지는 한 줄도 안 건드렸다.** 다만 저장소 루트 설정 두 개가 바뀌었으니 이건 꼭 알고 있어야 한다.
+
+**영향** — 세 가지만 기억하면 된다.
+
+1. **`git pull` 후 반드시 `node_modules`를 지우고 재설치할 것.** React 메이저가 통째로 바뀌었다.
+   ```
+   rm -rf node_modules apps/*/node_modules packages/*/node_modules && pnpm install
+   ```
+
+2. **React 버전 관리 지점이 다섯 곳 → 한 곳이 됐다.** ADR-0006·0007이 만든 장치를 전부 **제거**했다:
+   - 루트 `package.json`의 `react`/`react-dom`/`@types/react` 18 고정 → **삭제**
+   - `pnpm-workspace.yaml`의 `packageExtensions`(next에 React 19 타입 주입) → **삭제**
+
+   대신 `pnpm-workspace.yaml`에 `overrides` 네 줄로 저장소 전체 버전을 강제한다. **앞으로 React 계열 버전을 올릴 땐 거기만 고치면 된다.** ADR-0006·0007은 Superseded로 표시했으니 그 문서의 "세 곳/다섯 곳 표"는 더 이상 유효하지 않다.
+
+   `packageExtensions`를 지웠는데도 **admin 타입체크가 통과한다** — 저장소에 `@types/react`가 하나뿐이라 next가 잘못 잡을 대상 자체가 없어졌기 때문. `pnpm turbo run typecheck lint test build --force --concurrency=1` **20/20**(`next build` 포함)으로 확인했다.
+
+3. **`.npmrc`의 `shamefully-hoist=true`는 유지했다** — Expo/Metro의 깊은 require 대응이라는 ADR-0005의 원래 목적은 여전히 유효하다. 링커 설정은 안 건드렸다.
+
+**backend가 판단해줬으면 하는 것 (조치 필요, 급하지 않음)**:
+
+- **TypeScript 6.0 업그레이드**. `expo install --check`가 SDK 57 기준 `~6.0.3`을 권장하는데, TS는 admin·packages가 함께 쓰는 저장소 전체 의존성이라 이번 SDK 작업에 끼워 넣지 않고 5.9.3을 유지했다(그 상태로 20/20 통과 확인). admin/Next 쪽 영향을 판단할 수 있는 건 backend라 넘긴다.
+- 이전 handoff에 남긴 **admin `.next/types` 레이스**는 그대로다(로컬에서 네 개를 동시에 돌릴 때만, CI는 안전).
+
+**관련**: [ADR-0008](../decisions/0008-expo-sdk-57-react-19.md), [frontend-log 2026-09-08](./frontend-log.md#2026-09-08--p0-s7-t1t7--expo-sdk-52--57-업그레이드-react-19-통일-adr-00060007-부채-청산)
+**상태**: [ ] 미해결 (1·2·3은 읽고 확인만, TypeScript 6.0만 판단 필요)

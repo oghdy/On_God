@@ -14,6 +14,9 @@ import { queryClient } from "../lib/query/client";
 import { AuthProvider } from "../lib/auth/AuthProvider";
 import { Sentry, initSentry } from "../lib/sentry";
 
+// 딥링크로 /lyrics/... 등에 바로 진입해도 뒤로가기 스택이 index부터 쌓이도록 한다.
+export const unstable_settings = { initialRouteName: "index" };
+
 SplashScreen.preventAutoHideAsync();
 initSentry();
 
@@ -40,6 +43,11 @@ function RootLayout() {
               contentStyle: { backgroundColor: theme.background },
             }}
           >
+            {/* expo-router 57부터 <Stack>에 자식을 선언하면 그것이 라우트 목록이 된다.
+                profile 하나만 선언했더니 Android에서 그게 첫 화면이 되어 index가 아예
+                렌더되지 않았다(P0-S7-T5). 전부 명시하고 index를 맨 앞에 둔다. */}
+            <Stack.Screen name="index" />
+            <Stack.Screen name="lyrics/[songId]" />
             <Stack.Screen name="profile" options={{ presentation: "modal" }} />
           </Stack>
           <StatusBar style="light" />

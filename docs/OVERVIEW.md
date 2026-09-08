@@ -48,8 +48,9 @@
 - [ADR-0003 — 앨범커버 Storage 복사 + WebP](./decisions/0003-album-cover-storage.md)
 - [ADR-0004 — 위젯: 네이티브 직접 작성](./decisions/0004-widget-native.md)
 - [ADR-0005 — pnpm `node-linker=hoisted`](./decisions/0005-pnpm-hoisted-linker.md) *(ADR-0006으로 대체됨)*
-- [ADR-0006 — pnpm 링커: isolated + `shamefully-hoist` (React 18/19 공존)](./decisions/0006-pnpm-isolated-public-hoist.md) *(ADR-0007로 보정됨)*
-- [ADR-0007 — 루트 `react`/`react-dom` 런타임 사본도 18로 고정](./decisions/0007-root-react-runtime-pin.md)
+- [ADR-0006 — pnpm 링커: isolated + `shamefully-hoist` (React 18/19 공존)](./decisions/0006-pnpm-isolated-public-hoist.md) *(ADR-0008로 대체됨)*
+- [ADR-0007 — 루트 `react`/`react-dom` 런타임 사본도 18로 고정](./decisions/0007-root-react-runtime-pin.md) *(ADR-0008로 대체됨)*
+- [ADR-0008 — Expo SDK 57 / React 19 통일, React 고정을 `overrides` 한 곳으로](./decisions/0008-expo-sdk-57-react-19.md)
 
 새 ADR을 추가할 땐 `docs/decisions/000N-짧은-제목.md` 형식으로, 되돌리기 어려운 구조적
 결정에만 작성한다 (사소한 구현 선택은 로그로 충분).

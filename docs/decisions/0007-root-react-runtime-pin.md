@@ -1,6 +1,7 @@
 # ADR-0007 — 루트 `react`/`react-dom` 런타임 사본도 18로 고정 (ADR-0006 보정)
 
-- 상태: 채택(Accepted)
+- 상태: **대체됨(Superseded)** — 원래 채택(Accepted)
+- **대체됨: [ADR-0008 — Expo SDK 57 / React 19 통일](./0008-expo-sdk-57-react-19.md)** — 저장소 전체가 React 19로 통일되면서 이 ADR이 도입한 장치는 **전부 제거됐다.** React 메이저가 하나뿐이면 "어느 React가 루트로 호이스팅되는가"라는 문제 자체가 성립하지 않는다. 현재 유효한 장치는 `pnpm-workspace.yaml`의 `overrides` 네 줄뿐이다.
 - 일자: 2026-09-07
 - 보정 대상: [ADR-0006 — pnpm 링커: isolated + `shamefully-hoist`](./0006-pnpm-isolated-public-hoist.md) (대체가 아니라 **누락분 보강**)
 - 관련: [handoff 2026-09-07 backend → frontend](../logs/handoff.md), [frontend-log 2026-09-07](../logs/frontend-log.md)
