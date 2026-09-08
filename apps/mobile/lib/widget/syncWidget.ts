@@ -72,8 +72,11 @@ async function deliverWidgetPayload(payload: WidgetPayload | null): Promise<void
   const { OnGodTodayWidget } = await import("../../widgets/OnGodToday");
 
   if (!payload) {
-    // 오늘 픽이 없으면 빈 값으로 갱신한다. 어제 곡을 그대로 두면 사용자는 그게 오늘
-    // 곡인 줄 안다 — 틀린 정보를 보여주느니 비어 있는 게 낫다.
+    // 오늘 픽이 아예 없는 날(dev의 9/21이 그렇다). 빈 상태로 갱신한다.
+    //
+    // 주의: 이건 "오늘 곡이 없다"는 뜻이지 "아직 7시 전이다"가 아니다. 자정~7시 사이에
+    // 어제 곡이 떠 있는 건 정상 동작이며(WIDGET_SWITCH_HOUR_KST 참고), 그 처리는
+    // P3-S2-T4의 타임라인 예약에서 한다 — 여기서 섣불리 지우면 안 된다.
     OnGodTodayWidget.updateSnapshot({ title: "오늘의 곡을 준비 중이에요", artist: "" });
     return;
   }

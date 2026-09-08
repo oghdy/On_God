@@ -39,6 +39,22 @@ export interface WidgetPayload {
 export const WIDGET_DEEP_LINK = "ongod://";
 
 /**
+ * 위젯이 새 곡으로 바뀌는 시각 — **KST 기준 오전 7시**.
+ *
+ * 곡 자체는 KST 자정에 발행되지만(P1-S6 cron), 위젯은 아침 7시에 전환한다. 그래서
+ * **자정~7시 사이에는 어제 곡이 떠 있는 것이 정상이다** — 갱신 실패가 아니다.
+ *
+ * 이 시각 덕분에 위젯은 **미발행 콘텐츠를 미리 받을 필요가 없다.** 7시에 보여줄 곡은
+ * 자정부터 이미 `published`라 `widget_today_pick` 뷰로 그냥 읽힌다. 자정 즉시 전환이었다면
+ * 발행 전에 받아둬야 해서 RLS를 열어야 했다(handoff 2026-09-08 참고).
+ *
+ * **사용자 로컬 7시가 아니라 KST 7시다.** 곡 날짜가 KST 기준으로 정의돼 있어 거기 맞췄다.
+ * 앱·iOS 위젯·Android 위젯이 같은 값을 써야 하므로 여기 둔다 — 세 곳이 각자 박으면
+ * 반드시 어긋난다.
+ */
+export const WIDGET_SWITCH_HOUR_KST = 7;
+
+/**
  * 이미지 폴백 3단계: 위젯 전용(512) → 원본 커버(600) → 없음(null).
  *
  * 3단계까지 실제로 내려간다 — dev의 "Go Down Moses"가 Storage 버킷이 생기기 전에 등록돼
