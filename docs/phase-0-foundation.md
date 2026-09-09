@@ -136,8 +136,9 @@ apps/admin  ─┼─▶ integrations ─▶ db ─▶ core ◀── (core는 �
 
 - [x] 🤖 **P0-S6-T1** — GitHub Actions: PR 시 `lint + typecheck + test` ([로그](./logs/backend-log.md#2026-08-28--p0-s6-t1t5--cicd-기초))
 - [x] 🤖 **P0-S6-T2** — Supabase 마이그레이션 검증 워크플로 ([로그](./logs/backend-log.md#2026-08-28--p0-s6-t1t5--cicd-기초))
-- [ ] 🤝 **P0-S6-T3** — EAS Build 설정 (`eas.json`)
-  *나: `apps/mobile/eas.json` 프로파일 작성 완료 / 당신: Expo 계정 생성·로그인, EAS 프로젝트 연결 (`eas init`)*
+- [x] 🤝 **P0-S6-T3** — EAS Build 설정 (`eas.json`) — **실제 빌드 성공까지 완료(2026-09-08)**
+  *~~당신: Expo 계정 생성·로그인, EAS 프로젝트 연결~~ → 완료(계정 `doyis`). 이후 에이전트가 `development-simulator` 프로파일 추가, `eas env:push`로 EAS 환경변수 등록, iOS 시뮬레이터 개발 빌드 성공·설치·검증까지 마침 ([로그](./logs/frontend-log.md#2026-09-08--p3-s2-t1t2t3t5t6--eas-개발-빌드--위젯-실렌더-검증))*
+  *남은 것: 실기기 빌드(`development` 프로파일)는 Apple 로그인·기기 UDID 등록이 필요한 🧑 사람 몫*
 - [ ] 🤝 **P0-S6-T4** — Vercel 연결 (admin 자동 배포)
   *나: `apps/admin/vercel.json` + 환경변수 키 목록([`secrets-policy.md`](../secrets-policy.md)) 준비 완료 / 당신: Vercel에 GitHub 레포 연결, 환경변수 값 입력*
 - [x] 🤖 **P0-S6-T5** — 브랜치 전략·커밋 컨벤션 문서화 ([`docs/branching-and-commits.md`](../branching-and-commits.md))
