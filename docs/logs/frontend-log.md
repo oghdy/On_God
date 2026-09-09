@@ -438,3 +438,29 @@
 - **앱이 열리지 않으면 여전히 갱신되지 않는다.** 07:00 전에 앱이 한 번도 안 열리면 예약 자체가 안 잡힌다 — 이걸 메우는 게 P3-S4-T1(백그라운드 fetch)이고, 자정~07:00의 7시간 창이 있어 성공률은 높다.
 - iOS 위젯(S2)은 T7(🧑 실기기 테스트)만 남았다. 딥링크 최종 라우팅도 그때 같이 확인해야 한다(dev-client가 스킴을 가로채 미확인).
 - 다음: P3-S4-T1/T5(백그라운드 fetch·캐시 유지) → P3-S3(Android Glance).
+
+## 2026-09-09 · P3-S4-T1/T5 — 백그라운드 동기화 + 실패 시 캐시 유지
+
+**Task**: [P3-S4-T1/T5](../phase-3-widget.md#s4-갱신딥링크안정화-srs-42)
+**한 일**:
+- **T1**: `lib/widget/backgroundSync.ts` 신규. `expo-background-task` + `expo-task-manager`로 4시간 주기 백그라운드 작업을 등록하고, 그 안에서 `syncWidget()`을 돌린다. `_layout.tsx`에서 앱 기동 시 등록.
+- **T5**: 세 가지를 손봤다. (1) 실패해도 위젯을 건드리지 않는다(기존 동작 검증). (2) **바뀔 게 없으면 갱신 자체를 건너뛴다**(`isAlreadyScheduled`). (3) 플랫폼 가드를 `canDeliverWidget()` 하나로 모아 Android에서 헛된 네트워크 요청이 나가지 않게 했다.
+**왜 이렇게**:
+- **`expo-background-fetch`가 아니라 `expo-background-task`를 썼다.** 전자는 패키지 자체가 deprecated이고(`.d.ts`에 "The `expo-background-fetch` package has been deprecated" 명시), 후자가 iOS BGTaskScheduler / Android WorkManager를 쓰는 현행이다. 설치 전에 확인했다.
+- **주기를 4시간으로 잡았다.** 하루 최대 6회 정도의 기회를 만들어 자정~07:00의 7시간 창에 한 번은 걸리게 하려는 것이다. 더 짧으면 Android(WorkManager)가 실제로 그만큼 자주 돌아 하루 한 번 바뀌는 데이터에 네트워크를 낭비하고, 더 길면 그 창을 통째로 건너뛸 수 있다. iOS에서는 어차피 "이보다 자주는 말라"는 힌트일 뿐 실행 시점은 OS가 정한다.
+- **`TaskManager.defineTask`를 모듈 최상위에 뒀다.** 앱이 백그라운드로 깨어날 때 이 파일이 평가되는 시점에 작업이 등록돼 있어야 시스템이 핸들러를 찾는다. 함수 안으로 옮기면 조용히 실패한다.
+- **중복 갱신을 건너뛰는 이유**(T5의 실질): 백그라운드 작업이 몇 시간마다 도는데 곡은 하루에 한 번만 바뀐다. 매번 새로 쓰면 바뀐 게 없는데도 위젯이 계속 다시 그려져 WidgetKit 리로드 예산을 쓰고, **멀쩡한 상태를 건드릴 기회만 늘어난다.** 지금 그려지는 내용이 같고 예약할 미래 항목도 이미 같으면 손대지 않는다.
+- **Android 가드를 앞으로 당겼다.** `hasWidgetNative`만 보면 Android도 통과한다 — expo-widgets의 Android 모듈은 존재하지만 Glance 렌더가 스텁이라(ADR-0009) 전달해봐야 아무것도 안 그려진다. 그대로 두면 백그라운드 작업이 4시간마다 쓰이지도 않을 요청을 하게 된다. P3-S3에서 Android 전달 경로가 생기면 이 조건만 풀면 된다.
+**변경 파일**: `apps/mobile/lib/widget/backgroundSync.ts`(신규), `apps/mobile/lib/widget/syncWidget.ts`, `apps/mobile/app/_layout.tsx`, `apps/mobile/app.json`(플러그인), `apps/mobile/package.json`
+**검증**:
+- `pnpm turbo run typecheck lint test build` 20/20.
+- **`expo prebuild`로 Info.plist 확인**: `UIBackgroundModes: ["fetch","processing"]`, `BGTaskSchedulerPermittedIdentifiers: ["com.expo.modules.backgroundtask.processing"]` 정상 생성(플러그인이 처리). 확인 후 `ios/` 삭제.
+- 새 EAS 시뮬레이터 개발 빌드로 재검증.
+- **T5 — 실패 시 캐시 유지를 실제로 재현**: `fetchWidgetPayload`가 던지도록 임시 조작 → `[widget] 동기화 실패 — 위젯은 마지막 값을 유지한다` 로그, **위젯은 곡명·아티스트·커버 그대로 유지**됨을 스크린샷으로 확인. 확인 후 원복.
+- **T5 — 중복 갱신 건너뛰기 확인**: 같은 곡 상태에서 앱을 다시 열면 `[widget] 이미 최신 — 갱신 건너뜀`이 뜨고 위젯을 다시 쓰지 않는다.
+**막힌 점 / 다음 할 일**:
+- **iOS 백그라운드 실행은 시뮬레이터에서 검증할 수 없다 — 추측이 아니라 라이브러리가 명시한다.** 우회해서 등록을 시도해보니 `expo-background-task`가 직접 `Background tasks are not supported on iOS simulators. Skipped registering task` 경고를 내고 등록을 건너뛴다(`getStatusAsync()`도 `Restricted`를 반환). 즉 **실기기에서만 확인 가능**하다(P3-S2-T7 / P3-S4-T4, 🧑).
+  - 다만 이 결과로 **`Restricted` 처리 경로가 의도대로 동작하는 것은 확인됐다** — 등록을 건너뛰고 `앱을 열 때만 갱신된다`를 남긴 뒤 앱은 정상 동작한다(기기에서 백그라운드 앱 새로고침을 꺼둔 사용자와 같은 상황).
+  - **작업 등록·발동 배선 자체는 P3-S3에서 Android 빌드를 만들 때 함께 검증한다** — WorkManager는 에뮬레이터에서 실제로 돌고, `triggerTaskWorkerForTestingAsync()`로 즉시 발동시킬 수 있다. 지금 그것만을 위해 Android 빌드를 따로 만드는 건 P3-S3와 중복이라 미뤘다.
+- iOS 위젯(S2)에 남은 것은 T7(🧑 실기기)뿐이고, S4도 T2(타임존 정합성 — `WIDGET_SWITCH_HOUR_KST`로 이미 정리됨)·T3(딥링크 라우팅 통합)만 남았다.
+- 다음: P3-S4-T2/T3 마무리 → P3-S3(Android Glance).
