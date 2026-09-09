@@ -7,6 +7,8 @@
 // 계산하면 해외 사용자에게 하루 어긋나고, 세 구현이 서로 달라지는 순간 원인 추적이 거의
 // 불가능해진다. 이 파일에 날짜 계산이 없는 것은 의도된 것이다.
 
+import { kstMidnightToUtc, toKstDateString } from "../date/kst";
+
 /** `widget_today_pick` 뷰가 돌려주는 행. 0행 또는 1행이며, 0행은 정상 시나리오다. */
 export interface WidgetTodayPickRow {
   pick_date: string;
@@ -53,6 +55,73 @@ export const WIDGET_DEEP_LINK = "ongod://";
  * 반드시 어긋난다.
  */
 export const WIDGET_SWITCH_HOUR_KST = 7;
+
+const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * 주어진 순간이 속한 **KST 날짜의 전환 시각**(그날 07:00 KST)을 돌려준다.
+ *
+ * 어느 픽을 보여줄지는 서버(`widget_today_pick` 뷰)가 정하지만, **언제 바꿔 그릴지는**
+ * 클라이언트가 판단할 수밖에 없다 — 위젯 타임라인에 예약할 순간을 만들어야 하기 때문이다.
+ * 그 계산이 세 표면(앱·iOS·Android)에 흩어지면 어긋나므로 여기 한 곳에 둔다.
+ *
+ * 기기 로컬 타임존과 무관하게 항상 KST 07:00을 가리킨다.
+ */
+export function widgetSwitchAt(now: Date = new Date()): Date {
+  const kstMidnight = kstMidnightToUtc(toKstDateString(now));
+  return new Date(kstMidnight.getTime() + WIDGET_SWITCH_HOUR_KST * HOUR_MS);
+}
+
+/**
+ * 지금이 그날의 전환 시각을 지났는가 = **오늘 곡을 이미 보여줘야 하는 시간인가.**
+ *
+ * `false`면 아직 자정~07:00 구간이고, 이때 어제 곡이 떠 있는 것은 정상이다.
+ */
+export function isAfterWidgetSwitch(now: Date = new Date()): boolean {
+  return now.getTime() >= widgetSwitchAt(now).getTime();
+}
+
+/** 위젯 타임라인의 한 항목 — `date`가 되면 `props`로 그린다. */
+export interface WidgetTimelineSlot<Props> {
+  date: Date;
+  props: Props;
+}
+
+/**
+ * 위젯 타임라인을 만든다 — **"무엇을 그릴지"가 아니라 "언제 바꿔 그릴지"를 정하는 부분**
+ * (P3-S2-T4). iOS는 이 결과를 `updateTimeline`에 넘기고, Android(P3-S3)는 같은 규칙으로
+ * WorkManager 예약을 잡는다. 두 플랫폼이 다르게 판단하면 같은 날 다른 곡이 뜨므로
+ * 규칙을 여기 한 곳에 두고 테스트로 고정한다.
+ *
+ * 규칙:
+ * 1. **07:00을 지났으면** 새 내용을 지금 그린다.
+ * 2. **아직 07:00 전이면** 지금 떠 있는 것(어제 곡)을 그대로 두고, 07:00에 바뀌도록
+ *    예약한다. 곡은 이미 자정에 발행됐지만 위젯 전환 시각은 07:00이기 때문이다.
+ * 3. **07:00 전인데 지금 떠 있는 게 없으면**(위젯을 방금 추가) 새 내용을 바로 그린다.
+ *    유지할 어제 곡이 없는데 빈 위젯을 몇 시간 보여주는 것보다 낫다.
+ *
+ * `Props`를 제네릭으로 둔 건 플랫폼마다 위젯이 받는 모양이 달라서다 — 이 함수는 시각만
+ * 판단하고 내용에는 관여하지 않는다.
+ */
+export function buildWidgetTimeline<Props>(input: {
+  now: Date;
+  /** 이번에 새로 그릴 내용(오늘 곡, 또는 오늘 픽이 없을 때의 빈 상태). */
+  next: Props;
+  /** 지금 그려지고 있는 항목. 위젯을 방금 추가했다면 없다. */
+  current?: WidgetTimelineSlot<Props>;
+}): WidgetTimelineSlot<Props>[] {
+  const { now, next, current } = input;
+
+  if (isAfterWidgetSwitch(now) || !current) {
+    return [{ date: now, props: next }];
+  }
+
+  return [
+    // 지금 떠 있는 것을 그대로 유지한다. 이 항목을 빼면 07:00까지 위젯이 빈다.
+    { date: current.date, props: current.props },
+    { date: widgetSwitchAt(now), props: next },
+  ];
+}
 
 /**
  * 이미지 폴백 3단계: 위젯 전용(512) → 원본 커버(600) → 없음(null).

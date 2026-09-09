@@ -59,7 +59,7 @@
   *~~당신: Apple Developer에서 App Group·위젯용 App ID·프로비저닝 설정~~ → **2026-09-08 완료.** 확정 식별자: App Group `group.com.ongod.app` / 위젯 Bundle ID `com.ongod.app.widget` / 앱 `com.ongod.app`. 프로비저닝은 EAS Build가 자동 생성. 남은 건 에이전트 몫(플러그인·SwiftUI 코드)*
 - [x] 🤖 **P3-S2-T2** — App Group 공유 컨테이너 연결 — `expo-widgets`가 App Group UserDefaults와 `widgetsDirectory`를 관리한다(ADR-0009). 앱·위젯 양쪽 entitlements에 `group.com.ongod.app` 생성 확인
 - [x] 🤖 **P3-S2-T3** — 2×2 위젯 뷰 (커버+곡명) — `widgets/OnGodToday.tsx`. TSX + `@expo/ui/swift-ui`(ADR-0009). **시뮬레이터 홈 화면에서 실제 렌더 확인 완료** — 커버 풀블리드 + 하단 그라디언트 스크림 + 곡명/아티스트
-- 🤖 **P3-S2-T4** — TimelineProvider: 공유 컨테이너 읽기·자정 갱신
+- [x] 🤖 **P3-S2-T4** — 타임라인: KST 07:00 전환 예약 — 판단 로직은 `@ongod/core`의 `buildWidgetTimeline`(순수 함수, Android도 공유), 전달은 `updateTimeline`. **자정이 아니라 07:00 전환**이라는 점에 주의(S4 상단 명세) ([로그](./logs/frontend-log.md#2026-09-09--p3-s2-t4--위젯-타임라인-kst-0700-전환-예약))
 - [x] 🤖 **P3-S2-T5** — 위젯 탭 → 앱 오늘 카드 딥링크 — `widgetURL("ongod://")` modifier. 시뮬레이터에서 **탭 시 앱이 실제로 실행되는 것 확인**. 단 개발 빌드에서는 dev-client 런처가 스킴을 가로채 최종 라우팅까지는 확인 불가 — standalone 빌드 또는 실기기에서 재확인 필요
 - [x] 🤖 **P3-S2-T6** — 데이터 없음/이미지 실패 fallback — 이미지 3단계 폴백(위젯512 → 커버600 → 음표 심볼)은 `@ongod/core`에 테스트와 함께. **커버 없음 케이스를 시뮬레이터에서 강제 재현해 렌더 확인 완료** — 다크 배경(`containerBackground`) + 음표 심볼 + 곡명은 그대로 노출
 - 🧑 **P3-S2-T7** — iOS 실기기 테스트
