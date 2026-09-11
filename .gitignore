@@ -17,9 +17,11 @@ build/
 out/
 *.tsbuildinfo
 
-# native
-ios/
-android/
+# native — `expo prebuild`가 만드는 생성물만 무시한다(관리형 워크플로, 커밋하지 않음).
+# 경로를 고정한 이유: 그냥 `android/`라고 쓰면 로컬 네이티브 모듈의 소스
+# (apps/mobile/modules/*/android)까지 무시돼 커밋에서 조용히 빠진다(ADR-0010).
+/apps/mobile/ios/
+/apps/mobile/android/
 *.ipa
 *.apk
 

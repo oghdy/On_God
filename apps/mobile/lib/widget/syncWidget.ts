@@ -1,41 +1,89 @@
-// P3-S1-T2 / P3-S2-T4: 앱이 오늘 곡을 받아 위젯이 읽을 수 있는 곳에 넘긴다.
+// P3-S1-T2 / P3-S2-T4 / P3-S3-T2: 앱이 오늘 곡을 받아 위젯이 읽을 수 있는 곳에 넘긴다.
 //
-// 전달 방식은 플랫폼마다 다르다(ADR-0009):
-//   - iOS: expo-widgets가 App Group UserDefaults와 공유 디렉터리를 관리해준다. 우리는
-//     `updateTimeline`으로 "언제 무엇을 그릴지"를 예약하기만 하면 된다.
-//   - Android: expo-widgets의 Glance 렌더가 아직 스텁이라 P3-S3에서 직접 구현한다.
-//     그때 이 파일의 `deliverWidgetPayload`에 Android 분기를 추가하면 된다.
+// 전달 방식은 플랫폼마다 다르다:
+//   - iOS: expo-widgets가 App Group UserDefaults와 공유 디렉터리를 관리해준다(ADR-0009).
+//   - Android: 로컬 네이티브 모듈 `modules/ongod-widget`(Glance)이 SharedPreferences와 앱 내부
+//     저장소를 쓴다. expo-widgets의 Android Glance 렌더가 아직 스텁이라 직접 만들었다(ADR-0010).
 //
-// 가져오기(fetch)와 넘기기(deliver)를 나눠둔 덕분에 플랫폼 분기가 이 파일 한 곳에만 생긴다.
+// 두 플랫폼 모두 "타임라인(언제 무엇을 그릴지)을 넘기면 위젯이 그 시각에 맞춰 그린다"는 같은
+// 모양이다. 그래서 차이는 `loadWidgetSurface` 한 함수에 갇혀 있고, 07:00 판단·커버 캐시·중복
+// 건너뛰기는 두 플랫폼이 이 파일의 같은 코드를 탄다.
 
-import { buildWidgetTimeline, type WidgetPayload } from "@ongod/core";
+import { WIDGET_DEEP_LINK, buildWidgetTimeline, type WidgetPayload } from "@ongod/core";
 import { Directory, File } from "expo-file-system";
 import { requireOptionalNativeModule } from "expo-modules-core";
 import { Platform } from "react-native";
 
+import { OnGodWidgetNative } from "../../modules/ongod-widget";
 import type { OnGodTodayProps } from "../../widgets/OnGodToday";
 import { fetchWidgetPayload } from "./fetchWidgetPayload";
 
+type Slot = { date: Date; props: OnGodTodayProps };
+
 /**
- * 위젯 네이티브가 이 런타임에 있는지. **환경을 추측하지 않고 능력을 직접 확인한다** —
+ * 위젯 표면 — 플랫폼마다 다른 부분을 이 모양 하나로 감춘다. 새 방식이 생기면(예: expo-widgets가
+ * Android를 구현하면) `loadWidgetSurface`의 구현 하나만 바꾸면 된다.
+ */
+interface WidgetSurface {
+  /** 커버 파일을 받아둘 디렉터리(`file://`). 위젯이 직접 읽을 수 있는 곳이어야 한다. */
+  coversDirectory: string;
+  /** 지금 잡혀 있는 타임라인. 아직 한 번도 안 그렸으면 빈 배열. */
+  getTimeline(): Promise<Slot[]>;
+  updateTimeline(entries: Slot[]): Promise<void>;
+}
+
+/**
+ * iOS 위젯 네이티브가 이 런타임에 있는지. **환경을 추측하지 않고 능력을 직접 확인한다** —
  * Expo Go와 dev client는 `Constants.executionEnvironment`가 둘 다 `storeClient`라
  * 구분이 안 되고, dev client에는 위젯 네이티브가 실제로 들어있기 때문이다.
  *
  * `requireOptionalNativeModule`은 없으면 던지지 않고 null을 준다. 그냥 `import`하면
  * 모듈 평가 단계에서 터져 Expo Go 콘솔에 ERROR가 찍힌다(실제로 그랬다).
- */
-const hasWidgetNative = requireOptionalNativeModule("ExpoWidgets") !== null;
-
-/**
- * 이 런타임에서 위젯에 전달할 수 있는가.
  *
- * **Android에서 `hasWidgetNative`만 보면 안 된다** — expo-widgets의 Android 모듈은
- * 존재하지만 Glance 렌더가 스텁이라(ADR-0009) 전달해봐야 아무것도 안 그려진다. 그대로
- * 두면 백그라운드 작업이 몇 시간마다 아무 데도 쓰이지 않을 네트워크 요청을 하게 된다.
- * P3-S3에서 Android 전달 경로가 생기면 이 조건을 풀면 된다.
+ * **Android에서는 이 모듈을 쓰면 안 된다** — expo-widgets의 Android 모듈은 존재하지만 Glance
+ * 렌더가 스텁이라(ADR-0009) 넘겨도 아무것도 안 그려진다. 그래서 플랫폼을 함께 확인한다.
  */
-function canDeliverWidget(): boolean {
-  return Platform.OS === "ios" && hasWidgetNative;
+const hasIosWidgetNative = Platform.OS === "ios" && requireOptionalNativeModule("ExpoWidgets") !== null;
+
+/** 이 런타임의 위젯 표면. 없으면 null — 위젯 네이티브가 없는 Expo Go가 그렇다. */
+async function loadWidgetSurface(): Promise<WidgetSurface | null> {
+  if (hasIosWidgetNative) {
+    // 동적 import: 위젯 네이티브가 없는 런타임에서 이 모듈들을 평가하면 콘솔 ERROR가 난다.
+    const [{ widgetsDirectory }, { OnGodTodayWidget }] = await Promise.all([
+      import("expo-widgets"),
+      import("../../widgets/OnGodToday"),
+    ]);
+    return {
+      coversDirectory: widgetsDirectory,
+      getTimeline: () => OnGodTodayWidget.getTimeline(),
+      updateTimeline: async (entries) => OnGodTodayWidget.updateTimeline(entries),
+    };
+  }
+
+  if (Platform.OS === "android" && OnGodWidgetNative) {
+    const native = OnGodWidgetNative;
+    return {
+      coversDirectory: native.getCoversDirectory(),
+      getTimeline: async () =>
+        (await native.getTimeline()).map((entry) => ({
+          date: new Date(entry.date),
+          props: { title: entry.title, artist: entry.artist, imagePath: entry.imagePath ?? undefined },
+        })),
+      updateTimeline: (entries) =>
+        native.updateTimeline(
+          entries.map(({ date, props }) => ({
+            date: date.getTime(),
+            title: props.title,
+            artist: props.artist,
+            imagePath: props.imagePath ?? null,
+          })),
+          // 딥링크는 JS 상수를 넘긴다 — 네이티브에 같은 문자열을 또 박지 않으려고.
+          WIDGET_DEEP_LINK,
+        ),
+    };
+  }
+
+  return null;
 }
 
 /** 오늘 픽이 없는 날(dev의 9/21이 그렇다) 위젯에 그릴 내용. */
@@ -47,23 +95,22 @@ function coverFileName(songId: string): string {
 }
 
 /**
- * 위젯 이미지를 App Group 공유 디렉터리에 받아두고 로컬 경로를 돌려준다. **정리는 하지
+ * 위젯 이미지를 위젯이 읽을 수 있는 디렉터리에 받아두고 로컬 경로를 돌려준다. **정리는 하지
  * 않는다** — 무엇을 지워도 되는지는 타임라인을 다 만들어봐야 알 수 있어서 `pruneCovers`로
  * 분리했다.
  *
- * 왜 다운로드가 필요한가: 위젯의 `Image`는 `uiImage`에 **로컬 파일 경로만** 받는다(동기
- * 읽기라 원격 URL을 못 쓴다). 게다가 위젯 익스텐션은 메모리·실행시간 예산이 빡빡해서
- * 네트워크를 타면 안 된다 — 받아두는 건 앱의 몫이다.
+ * 왜 다운로드가 필요한가: iOS 위젯의 `Image`는 `uiImage`에 **로컬 파일 경로만** 받고(동기 읽기라
+ * 원격 URL을 못 쓴다), Android 위젯도 비트맵으로 넘겨야 한다. 게다가 위젯은 메모리·실행시간
+ * 예산이 빡빡해서 네트워크를 타면 안 된다 — 받아두는 건 앱의 몫이다.
  *
  * 실패하면 `undefined` — 커버 없이 곡명만 그린다. 이미지 하나 때문에 위젯 전체가
  * 비어버리는 게 더 나쁘다.
  */
-async function cacheCover(payload: WidgetPayload): Promise<string | undefined> {
+async function cacheCover(payload: WidgetPayload, directory: string): Promise<string | undefined> {
   if (!payload.imageUrl) return undefined;
 
   try {
-    const { widgetsDirectory } = await import("expo-widgets");
-    const dir = new Directory(widgetsDirectory);
+    const dir = new Directory(directory);
     if (!dir.exists) dir.create({ intermediates: true });
 
     const target = new File(dir, coverFileName(payload.songId));
@@ -85,10 +132,9 @@ async function cacheCover(payload: WidgetPayload): Promise<string | undefined> {
  * 위젯이 07:00까지 커버 없는 상태로 보인다. 그래서 지울 대상을 "참조되지 않는 파일"로
  * 정의하고, 타임라인을 다 만든 뒤에 호출한다.
  */
-async function pruneCovers(keepUris: (string | undefined)[]): Promise<void> {
+async function pruneCovers(keepUris: (string | undefined)[], directory: string): Promise<void> {
   try {
-    const { widgetsDirectory } = await import("expo-widgets");
-    const dir = new Directory(widgetsDirectory);
+    const dir = new Directory(directory);
     if (!dir.exists) return;
 
     const keep = new Set(keepUris.filter((uri): uri is string => Boolean(uri)));
@@ -101,14 +147,10 @@ async function pruneCovers(keepUris: (string | undefined)[]): Promise<void> {
   }
 }
 
-type Slot = { date: Date; props: OnGodTodayProps };
-
 /** 위젯에 현재 잡혀 있는 타임라인. 아직 한 번도 안 그려졌으면 빈 배열이다. */
-async function readTimeline(widget: {
-  getTimeline(): Promise<Slot[]>;
-}): Promise<Slot[]> {
+async function readTimeline(surface: WidgetSurface): Promise<Slot[]> {
   try {
-    const entries = await widget.getTimeline();
+    const entries = await surface.getTimeline();
     return entries
       // 네이티브를 왕복하면서 date가 숫자로 올 수도 있어 한 번 정규화한다.
       .map((entry) => ({ ...entry, date: new Date(entry.date) }))
@@ -155,21 +197,20 @@ function isAlreadyScheduled(existing: Slot[], next: Slot[], now: Date): boolean 
  * 07:00에 바뀐다(`WIDGET_SWITCH_HOUR_KST`). 그래서 자정~07:00 사이에 앱이 열리면
  * 오늘 곡을 **지금 그리면 안 되고** 07:00에 그리도록 예약해야 한다.
  */
-async function deliverWidgetPayload(payload: WidgetPayload | null): Promise<void> {
-  const { OnGodTodayWidget } = await import("../../widgets/OnGodToday");
+async function deliverWidgetPayload(surface: WidgetSurface, payload: WidgetPayload | null): Promise<void> {
   const now = new Date();
 
   // 커버를 지우기 전에 지금 잡혀 있는 타임라인을 먼저 읽어둔다 — 유지할 엔트리가 참조하는
   // 파일을 살려둬야 하기 때문이다(`pruneCovers` 주석 참고).
-  const existing = await readTimeline(OnGodTodayWidget);
+  const existing = await readTimeline(surface);
   const current = displayedAt(existing, now);
 
   const props: OnGodTodayProps = payload
-    ? { title: payload.title, artist: payload.artist, imagePath: await cacheCover(payload) }
+    ? { title: payload.title, artist: payload.artist, imagePath: await cacheCover(payload, surface.coversDirectory) }
     : EMPTY_PROPS;
 
-  // "언제 바꿔 그릴지"는 `@ongod/core`의 순수 함수가 정한다 — Android(P3-S3)도 같은
-  // 규칙으로 예약을 잡아야 해서 공유하고, 시각 판단은 테스트로 고정해뒀다.
+  // "언제 바꿔 그릴지"는 `@ongod/core`의 순수 함수가 정한다 — iOS·Android가 같은 규칙으로
+  // 예약을 잡도록 공유하고, 시각 판단은 테스트로 고정해뒀다.
   // `pickDate`를 넘겨 전환 시각을 **서버가 정한 곡의 날짜**로 계산하게 한다(P3-S4-T2) —
   // 기기 시계로 계산하면 시계가 늦은 폰에서 새 곡이 07:00이 아니라 자정에 바로 뜬다.
   const entries = buildWidgetTimeline({ now, next: props, pickDate: payload?.pickDate, current });
@@ -179,8 +220,11 @@ async function deliverWidgetPayload(payload: WidgetPayload | null): Promise<void
     return;
   }
 
-  await pruneCovers(entries.map((entry) => entry.props.imagePath));
-  OnGodTodayWidget.updateTimeline(entries);
+  await pruneCovers(
+    entries.map((entry) => entry.props.imagePath),
+    surface.coversDirectory,
+  );
+  await surface.updateTimeline(entries);
 
   console.log(
     "[widget] 타임라인",
@@ -194,17 +238,17 @@ async function deliverWidgetPayload(payload: WidgetPayload | null): Promise<void
  * 된다).
  */
 export async function syncWidget(): Promise<void> {
-  // 전달할 곳이 없으면 네트워크 요청부터 하지 않는다. 여기서 막지 않으면 Expo Go에서는
-  // expo-widgets를 import하는 순간 모듈 평가가 실패해 콘솔에 ERROR가 찍히고, Android에서는
-  // 백그라운드 작업이 쓰이지도 않을 요청을 반복한다.
-  if (!canDeliverWidget()) {
-    console.log("[widget] 전달 대상 없음 — 동기화 건너뜀 (Expo Go·Android에서는 정상)");
-    return;
-  }
-
   try {
+    // 전달할 곳이 없으면 네트워크 요청부터 하지 않는다 — 백그라운드 작업이 쓰이지도 않을 요청을
+    // 반복하지 않게.
+    const surface = await loadWidgetSurface();
+    if (!surface) {
+      console.log("[widget] 전달 대상 없음 — 동기화 건너뜀 (Expo Go에서는 정상)");
+      return;
+    }
+
     const payload = await fetchWidgetPayload();
-    await deliverWidgetPayload(payload);
+    await deliverWidgetPayload(surface, payload);
   } catch (error) {
     console.warn("[widget] 동기화 실패 — 위젯은 마지막 값을 유지한다", error);
   }

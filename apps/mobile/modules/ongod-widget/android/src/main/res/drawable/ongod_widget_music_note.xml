@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- P3-S3-T6: 커버가 없는 곡의 대체 심볼. iOS 위젯의 SF Symbol "music.note"(#4A4A50)에 해당. Material Icons "music_note"(Apache 2.0). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+  android:width="44dp"
+  android:height="44dp"
+  android:viewportWidth="24"
+  android:viewportHeight="24">
+  <path
+    android:fillColor="#4A4A50"
+    android:pathData="M12,3v10.55c-0.59,-0.34 -1.27,-0.55 -2,-0.55 -2.21,0 -4,1.79 -4,4s1.79,4 4,4 4,-1.79 4,-4V7h4V3h-6z" />
+</vector>

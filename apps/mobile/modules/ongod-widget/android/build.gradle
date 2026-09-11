@@ -1,0 +1,49 @@
+// P3-S3-T1: OnGod Android 홈 화면 위젯(Glance) 로컬 Expo 모듈. 근거는 ADR-0010.
+//
+// 관리형 워크플로를 그대로 쓴다 — `android/`를 커밋하지 않아도 expo 오토링킹이 `modules/`를 찾아
+// 빌드에 넣고, 이 모듈의 AndroidManifest·리소스는 앱에 자동으로 병합된다. 그래서 위젯 등록에
+// Config Plugin이 필요 없다.
+
+buildscript {
+  repositories {
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    // Glance는 Compose 위에서 돈다. Kotlin 2.x부터 Compose 컴파일러가 Kotlin 플러그인이라 버전이
+    // 반드시 Kotlin과 같아야 한다 — expo-widgets의 Android 모듈과 같은 방식.
+    classpath("org.jetbrains.kotlin.plugin.compose:org.jetbrains.kotlin.plugin.compose.gradle.plugin:${kotlinVersion}")
+  }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'expo-module-gradle-plugin'
+apply plugin: 'org.jetbrains.kotlin.plugin.compose'
+
+group = 'com.ongod.widget'
+version = '0.0.0'
+
+expoModule {
+  canBePublished false
+}
+
+android {
+  namespace "com.ongod.widget"
+  defaultConfig {
+    versionCode 1
+    versionName '0.0.0'
+  }
+
+  buildFeatures {
+    compose true
+  }
+}
+
+dependencies {
+  // 버전은 이미 빌드에 들어와 있는 것과 맞춘다 — 서로 다르면 Gradle이 높은 쪽으로 올려버려
+  // 그 모듈들이 검증되지 않은 버전으로 돈다.
+  //   - Glance: expo-widgets(Android 스텁 모듈)가 쓰는 버전
+  //   - WorkManager: expo-background-task가 쓰는 버전
+  implementation 'androidx.glance:glance-appwidget:1.2.0-rc01'
+  implementation 'androidx.work:work-runtime-ktx:2.9.1'
+}

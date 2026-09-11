@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  P3-S3-T1: 위젯 등록. 라이브러리 매니페스트라 빌드 시 앱 매니페스트에 자동 병합된다 —
+  Config Plugin으로 앱 매니페스트를 고칠 필요가 없다(ADR-0010).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <receiver
+      android:name="com.ongod.widget.OnGodWidgetReceiver"
+      android:exported="true"
+      android:label="@string/ongod_widget_name">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/ongod_widget_info" />
+    </receiver>
+  </application>
+</manifest>

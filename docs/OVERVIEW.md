@@ -52,6 +52,7 @@
 - [ADR-0007 — 루트 `react`/`react-dom` 런타임 사본도 18로 고정](./decisions/0007-root-react-runtime-pin.md) *(ADR-0008로 대체됨)*
 - [ADR-0008 — Expo SDK 57 / React 19 통일, React 고정을 `overrides` 한 곳으로](./decisions/0008-expo-sdk-57-react-19.md)
 - [ADR-0009 — 위젯: iOS는 `expo-widgets`, Android는 Glance 직접 작성](./decisions/0009-widget-expo-widgets-ios-glance-android.md)
+- [ADR-0010 — Android 위젯: 로컬 Expo 모듈 + JS 타임라인 + WorkManager 전환](./decisions/0010-android-widget-local-module.md)
 
 새 ADR을 추가할 땐 `docs/decisions/000N-짧은-제목.md` 형식으로, 되돌리기 어려운 구조적
 결정에만 작성한다 (사소한 구현 선택은 로그로 충분).

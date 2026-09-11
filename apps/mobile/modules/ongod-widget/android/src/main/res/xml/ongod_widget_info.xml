@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  P3-S3-T1: 2×2 위젯 규격.
+  - minWidth/minHeight 110dp = 안드로이드 셀 공식(70×n − 30)의 2칸. targetCell은 Android 12+용.
+  - resizeMode none: MVP는 소형(2×2)만이다(iOS도 systemSmall만). 늘리려면 여기만 바꾸면 된다.
+  - updatePeriodMillis 0: 주기 갱신을 쓰지 않는다. 전환 시각은 WorkManager로 정확히 건다(P3-S3-T4).
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+  android:minWidth="110dp"
+  android:minHeight="110dp"
+  android:targetCellWidth="2"
+  android:targetCellHeight="2"
+  android:resizeMode="none"
+  android:updatePeriodMillis="0"
+  android:initialLayout="@layout/glance_default_loading_layout"
+  android:description="@string/ongod_widget_description"
+  android:widgetCategory="home_screen" />

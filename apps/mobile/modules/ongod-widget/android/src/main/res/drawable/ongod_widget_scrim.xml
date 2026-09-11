@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  P3-S3-T3: 커버 위 텍스트가 읽히도록 아래쪽을 어둡게 까는 스크림. iOS 위젯·앱 DailyCard와 같은 방식.
+  Glance는 그라디언트를 직접 그리지 못해 drawable로 둔다. iOS는 4지점(0.35까지 투명)인데 shape
+  gradient는 3지점까지라 중간 지점을 아래로 내려 비슷하게 맞췄다.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+  <gradient
+    android:angle="270"
+    android:startColor="#00000000"
+    android:centerColor="#40000000"
+    android:centerY="0.6"
+    android:endColor="#D9000000" />
+</shape>

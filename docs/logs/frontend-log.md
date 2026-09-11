@@ -515,3 +515,52 @@
 - **사람 결정 필요 (P3-S4-T3에서)**: 자정~07:00에는 **위젯은 어제 곡인데 앱 오늘 카드는 이미 오늘 곡**이다(앱은 자정 기준). 이 시간에 위젯을 탭하면 위젯과 다른 곡이 열린다. (a) 그대로 둔다 / (b) 위젯 딥링크에 날짜를 실어 위젯이 보여주던 곡의 카드로 연다 — 카드 스와이프 목록에 어제 곡이 이미 있어 구현 부담은 작다. 딥링크 라우팅 Task라 T3에서 정하고, phase 문서 T3 아래에 적어뒀다.
 - 백엔드 영향 없음 — cron·발행 함수·뷰는 점검만 했고 그대로다. 어드민 날짜 처리도 문제없음을 확인해 handoff는 남기지 않았다.
 - 다음: P3-S3(Android Glance) → P3-S4-T3(딥링크 라우팅 통합, 위 결정 포함).
+
+## 2026-09-11 · P3-S3-T1~T6 — Android 위젯(Glance): 로컬 Expo 모듈 + 에뮬레이터 종단 검증
+
+**Task**: [P3-S3-T1~T6](../phase-3-widget.md#s3-android-위젯-glance) (+ P3-S4-T1의 Android 검증, P3-S4-T3 결정 기록)
+**한 일**:
+- **사람 결정 기록(P3-S4-T3)**: "오전 7시 전까지는 그냥 어제의 곡, 7시에 위젯이 바뀐다" → (a) 그대로 둔다. 딥링크는 `ongod://` 하나로 유지하고 날짜를 싣지 않는다.
+- **로컬 Expo 모듈 `apps/mobile/modules/ongod-widget` 신규** — [ADR-0010](../decisions/0010-android-widget-local-module.md):
+  - **T1**: `expo-module.config.json` + `android/build.gradle`(Glance 1.2.0-rc01·WorkManager 2.9.1·Compose 컴파일러 플러그인) + 라이브러리 매니페스트의 `<receiver>` + `appwidget-provider`(110dp 2×2, resize none, `updatePeriodMillis` 0) + 문자열. 오토링킹 기본 경로라 설정이 없고, 매니페스트가 자동 병합돼 **Config Plugin이 필요 없다.**
+  - **T2**: `WidgetStore.kt`(SharedPreferences, JSON + `version`) + `OnGodWidgetModule.kt`(`getCoversDirectory`/`getTimeline`/`updateTimeline`) + JS 입구 `modules/ongod-widget/index.ts`.
+  - **T3**: `OnGodWidget.kt` — 커버 Crop 풀블리드 + 스크림 drawable + 곡명 15sp bold / 아티스트 12sp, 모서리는 런처 시스템 반경. `CoverLoader.kt`는 512px 기준으로 줄여 읽고, 커버 디렉터리 밖 경로는 거부한다.
+  - **T4**: `WidgetRefresh.kt` — 타임라인의 다음 시각에 `OneTimeWorkRequest`(고유 이름, REPLACE). 워커는 네트워크 없이 다시 그리기만 한다. 위젯 추가·재부팅 시(`onUpdate`)에도 재예약.
+  - **T5**: 위젯 전체 탭 → `ACTION_VIEW ongod://` + `setPackage(우리 앱)`. 딥링크를 아직 모르면(동기화 전) 런처 인텐트.
+  - **T6**: 커버 없음 → #0B0B0D 배경 + 음표 벡터(#4A4A50). 동기화 전 → "오늘의 곡을 준비 중이에요".
+- **`lib/widget/syncWidget.ts`**: 플랫폼 차이를 `WidgetSurface`(`coversDirectory`·`getTimeline`·`updateTimeline`) + `loadWidgetSurface` 하나로 모았다. P3-S4-T5에서 넣었던 "Android는 전달하지 않는다" 가드를 풀었다 — **Android도 07:00 판단·커버 캐시·중복 건너뛰기를 iOS와 같은 코드로 탄다.**
+- **`.gitignore`**: `ios/`·`android/` → `/apps/mobile/ios/`·`/apps/mobile/android/`.
+- **`human-actions.md`**: 🤝 P3-S3-T1b(EAS Android 서명 키 생성 승인) 추가. phase 문서에도 전술 Task로 추가.
+
+**왜 이렇게**:
+- **로컬 모듈을 택한 이유**: Config Plugin(`withDangerousMod`)으로 `android/app`에 Kotlin을 써넣는 expo-widgets 방식은 코드가 JS 문자열 템플릿 안에 들어가 컴파일러 도움을 못 받는다. `android/` 커밋은 관리형을 포기하는 것이다. 라이브러리 매니페스트 병합으로 앱 매니페스트를 건드릴 필요 자체가 없었다.
+- **판단은 JS, 네이티브는 "지금 시각의 칸"만 고른다.** Kotlin에 07:00 규칙을 다시 짜면 두 플랫폼이 같은 날 다른 곡을 그릴 수 있고, P3-S4-T2의 `pickDate` 보정 같은 수정도 두 번 해야 한다. 모듈 API를 expo-widgets iOS와 같은 모양으로 맞춰 JS 흐름을 통째로 공유했다.
+- **Glance 세션 함정을 설계 단계에서 피했다.** Glance는 위젯 세션이 살아 있는 동안 `provideGlance`를 다시 부르지 않는다 — 거기서 한 번 읽고 끝내면 앱 동기화 직후나 07:00 워커 직후에도 옛 그림이 남는다. 그래서 컴포지션 안에서 SharedPreferences 변경을 구독한다. 이때 **타임라인 자체를 상태로 흘리면 안 된다** — 07:00 워커는 내용을 바꾸지 않고 "다시 그려라"만 보내는데, 같은 내용(data class 동등)이면 Compose 상태가 안 바뀌어 재구성이 일어나지 않는다. 매번 다른 값(`elapsedRealtimeNanos`)을 흘리고 그걸 키로 다시 읽게 했다.
+- **`.gitignore` 함정은 작성 직후 `git check-ignore`로 실제로 걸리는 것을 확인했다.** 루트의 `android/`가 이름만 같은 모든 폴더를 무시해 모듈의 Kotlin 소스 전체가 커밋에서 조용히 빠질 뻔했다 — 내 로컬에선 되고 EAS·다른 기기에선 위젯이 없는, 원인 찾기 가장 어려운 종류의 사고다.
+- **의존성 버전을 이미 빌드에 있는 것과 맞췄다**(Glance ← expo-widgets, WorkManager ← expo-background-task). 다르면 Gradle이 높은 쪽으로 올려 그 모듈들이 검증 안 된 버전으로 돈다.
+- **EAS Android 빌드는 하지 않았다.** 이 앱의 첫 EAS Android 빌드는 앱 서명 키를 새로 만들고, 그 키는 Play Store 신원이 된다. 되돌리기 번거로운 일이라 사람 승인 항목으로 올렸다. 대신 EAS가 하는 것과 같은 경로(`expo prebuild` → Gradle)를 로컬에서 돌렸다.
+- **ExpoModulesCore 경고를 그냥 두지 않았다**: `Introspectable data is missing for class TimelineEntryRecord` — 리플렉션 변환으로 떨어진다는 경고. expo 자체 모듈(expo-crypto)이 쓰는 `@OptimizedRecord` + `var` 필드로 고쳤다(첫 시도는 import 누락으로 컴파일 실패 → 수정).
+
+**변경 파일**: `apps/mobile/modules/ongod-widget/`(신규 — `expo-module.config.json`, `index.ts`, `android/build.gradle`, `android/src/main/AndroidManifest.xml`, `android/src/main/java/com/ongod/widget/{OnGodWidget,OnGodWidgetModule,OnGodWidgetReceiver,WidgetStore,WidgetRefresh,CoverLoader}.kt`, `android/src/main/res/{xml/ongod_widget_info,values/strings,drawable/ongod_widget_scrim,drawable/ongod_widget_music_note}.xml`), `apps/mobile/lib/widget/syncWidget.ts`, `.gitignore`, `docs/decisions/0010-android-widget-local-module.md`(신규), `docs/OVERVIEW.md`, `docs/phase-3-widget.md`, `docs/human-actions.md`
+**검증** (Android 에뮬레이터 Medium Phone / API 36, 로컬 `expo prebuild --platform android` + Gradle debug 빌드 — 첫 빌드 11분 55초, 증분 7초):
+- **빌드 경로**: 오토링킹이 `ongod-widget`(`com.ongod.widget.OnGodWidgetModule`)을 찾음. 병합 매니페스트에 `OnGodWidgetReceiver` + provider 메타데이터. `dumpsys appwidget`에 provider 등록.
+- **T1/T3 — 위젯 선택기·실렌더**: 선택기에 "OnGod · 오늘의 곡 · 2×2 · 오늘의 흑인영가 한 곡을 홈 화면에서 바로 봅니다." 노출 → 추가 → **실제 dev 데이터로 렌더**("Break Every Chain" 커버 풀블리드 + 스크림 + 곡명/아티스트). RemoteViews 비트맵 1MB = 512×512 디코드와 일치. 추가 직후 보인 얇은 밝은 테두리는 런처의 선택 강조였고 다른 곳을 탭하자 사라짐.
+- **T2 — 데이터**: 앱 기동 로그 `[widget] 타임라인 [{title: "Break Every Chain"}]`. `run-as`로 SharedPreferences를 직접 열어 `version·deepLink·entries` 확인, 커버 파일 `files/ongod-widget/cover-….webp`(11KB) 확인.
+- **T4 + T6 — 앱이 꺼진 상태의 전환**: 전환 시각을 90초 뒤로, 그 칸은 커버 없이 두는 임시 코드로 타임라인을 쓴 뒤 **앱 프로세스를 강제 종료**(PID 없음 확인). JobScheduler에 `+1m29s` 작업이 잡힌 것을 보고, 예약 시각 약 10초 뒤 워커가 앱 프로세스를 띄워 위젯이 **"TEMP 전환 확인" + 어두운 배경 음표**로 바뀐 것을 스크린샷으로 확인.
+  - 종료는 `force-stop`이 아니라 `run-as … kill -9`로 했다 — `force-stop`은 그 앱의 예약 작업까지 지워 "앱이 꺼져도 바뀐다"를 검증할 수 없다. 처음 쓴 `am kill`은 프로세스가 안 죽어서 바꿨다.
+- **T5 — 탭**: 위젯 탭 → 시스템 로그 `START act=VIEW dat=ongod:// pkg=com.ongod.app cmp=.MainActivity (LAUNCH_SINGLE_TASK)` → 앱이 **오늘 카드("Break Every Chain")로 열림**. iOS 개발 빌드와 달리 Android dev client는 스킴을 가로채지 않았다(겹쳐 보인 흰 시트는 dev client 첫 실행 안내).
+- **P3-S4-T1 Android 몫 — 백그라운드 동기화**:
+  - 등록: `Enqueuing worker with identifier EXPO_BACKGROUND_WORKER and '240' minutes delay`, JobScheduler에 네트워크 제약 작업.
+  - 실행: 앱 기동 동기화를 끄고 **앱이 백그라운드에 들어가는 순간** `triggerTaskWorkerForTestingAsync`를 부르는 임시 코드로 확인 → `Executing task 'ongod-widget-sync'` → JS `syncWidget` → `[widget] 타임라인 [{title: "Break Every Chain"}]` → `Task successfully finished` → 다음 240분 재예약. **앱을 열지 않은 채** 위젯이 TEMP 칸에서 커버 있는 오늘 곡으로 돌아옴.
+  - 도중에 두 번 틀렸다. (1) `cmd jobscheduler run -f`로 강제 실행하면 프로세스만 뜨고 작업은 안 돈다 — WorkManager가 자기 초기 지연(240분)을 따로 검사한다. (2) 앱이 전면일 때 테스트 훅을 부르면 expo-background-task가 의도적으로 건너뛴다(`App is in the foreground`). 그래서 백그라운드 진입 시점으로 옮겼다(RN은 백그라운드에서 JS 타이머가 멈춰 `setTimeout`으로는 안 된다).
+- `@OptimizedRecord` 적용 후 재빌드 → `updateTimeline` 호출에도 Introspectable 경고 없음.
+- 임시 코드 전부 원복(`grep TEMP` 0건, `_layout.tsx` diff 없음). `pnpm turbo run typecheck lint test build` **20/20**. 생성된 `apps/mobile/android/`와 모듈 빌드 산출물은 삭제(관리형 유지).
+
+**막힌 점 / 다음 할 일**:
+- 🤝 **P3-S3-T1b**: EAS Android 첫 빌드 = 서명 키 생성 → 사람 승인 대기. 승인되면 EAS 개발 빌드로 관리형 경로를 확인하고 그 APK를 실기기 테스트(P3-S3-T7)에 쓴다.
+- **CI는 Kotlin을 컴파일하지 않는다.** 모듈의 네이티브 코드를 바꾸면 로컬/EAS 빌드로 확인해야 한다. CI에 Android 컴파일 잡을 넣는 건 후보로 남긴다(prebuild + Gradle이 첫 실행 10분대라 비용 판단 필요).
+- **WorkManager 지연**: 이번 측정은 예약 후 약 10초. 절전(Doze) 중인 실기기에서는 더 늦을 수 있다 — 먼저 도는 일은 없으므로 "7시 전에 새 곡"은 생기지 않는다. 실기기(P3-S3-T7)에서 확인.
+- **위젯 선택기 미리보기가 기본 앱 아이콘**이다(`previewLayout`/`previewImage` 미설정). 출시 전 다듬기 후보.
+- 에뮬레이터 런처의 2×2 칸이 세로로 길어(172×234dp) 커버 좌우가 잘린다 — Crop이라 정상 동작이지만 기기마다 칸 비율이 달라 실기기에서 모양 확인.
+- 백엔드 영향 없음 — 계약·뷰는 그대로 쓴다. 루트 `.gitignore` 변경은 `apps/mobile`의 생성물 경로만 좁힌 것이라 handoff는 남기지 않았다.
+- 다음: P3-S4-T3(딥링크 라우팅 통합) → 🧑 실기기(P3-S2-T7·P3-S3-T7·P3-S4-T4).

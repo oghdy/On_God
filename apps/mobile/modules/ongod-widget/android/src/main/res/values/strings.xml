@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- iOS app.json의 expo-widgets 설정(displayName·description)과 같은 문구 -->
+  <string name="ongod_widget_name">오늘의 곡</string>
+  <string name="ongod_widget_description">오늘의 흑인영가 한 곡을 홈 화면에서 바로 봅니다.</string>
+  <!-- 앱이 아직 한 번도 동기화하지 않았을 때. JS의 EMPTY_PROPS(syncWidget.ts)와 같은 문구 -->
+  <string name="ongod_widget_placeholder">오늘의 곡을 준비 중이에요</string>
+</resources>
