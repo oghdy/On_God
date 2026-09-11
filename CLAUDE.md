@@ -14,8 +14,8 @@ Claude Code(또는 호환 에이전트)가 이 폴더에서 세션을 시작하�
 3. 작업할 `docs/phase-N-*.md` — 해당 Phase의 Step/Task 목록에서 다음 미완료 Task 확인
 4. 필요 시 관련 `docs/decisions/*.md` (ADR)
 
-이 프로젝트는 아직 git 저장소가 아니다(`git init` 안 됨). 커밋 관련 작업 전에 저장소
-초기화 여부를 확인하고, 없으면 사람에게 GitHub 레포 생성 여부를 먼저 확인한다.
+이 프로젝트는 git 저장소다(`origin` → `github.com/oghdy/On_God`, 기본 브랜치 `main`).
+커밋은 자유롭게 하되, **push는 하기 전에 사람에게 확인받는다.**
 
 ## 담당자 구분
 
