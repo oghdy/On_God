@@ -7,6 +7,7 @@ import {
   resolveWidgetImageUrl,
   toWidgetPayload,
   widgetSwitchAt,
+  widgetSwitchAtForDate,
   type WidgetTodayPickRow,
 } from "./widget";
 
@@ -148,5 +149,58 @@ describe("buildWidgetTimeline — 언제 바꿔 그릴지", () => {
     expect(kept?.props).toBe(yesterday);
     expect(scheduled?.props).toBe(empty);
     expect(scheduled?.date.toISOString()).toBe(new Date("2026-09-21T07:00:00+09:00").toISOString());
+  });
+});
+
+describe("buildWidgetTimeline — pickDate 기준 전환 (P3-S4-T2: 기기 시계와 서버 시계가 어긋날 때)", () => {
+  const today = { t: "9일 곡" };
+  const yesterday = { t: "8일 곡" };
+  const current = { date: new Date("2026-09-08T07:00:00+09:00"), props: yesterday };
+
+  it("widgetSwitchAtForDate는 그 날짜의 07:00 KST다 — 연말 경계 포함", () => {
+    expect(widgetSwitchAtForDate("2026-09-09").toISOString()).toBe(
+      new Date("2026-09-09T07:00:00+09:00").toISOString(),
+    );
+    expect(widgetSwitchAtForDate("2027-01-01").toISOString()).toBe("2026-12-31T22:00:00.000Z");
+  });
+
+  it("기기 시계가 늦어 아직 전날 밤이라고 믿어도, 서버가 준 9일 곡은 9일 07:00에 바뀐다", () => {
+    // 실제로는 KST 9일 00:02라 서버가 9일 곡을 줬는데, 기기 시계는 5분 늦어 8일 23:57이다.
+    const deviceNow = new Date("2026-09-08T23:57:00+09:00");
+
+    const [kept, scheduled] = buildWidgetTimeline({ now: deviceNow, next: today, pickDate: "2026-09-09", current });
+
+    expect(kept).toEqual(current);
+    expect(scheduled?.props).toBe(today);
+    expect(scheduled?.date.toISOString()).toBe(new Date("2026-09-09T07:00:00+09:00").toISOString());
+  });
+
+  it("같은 상황에서 pickDate 없이 기기 시계만 보면 자정에 바로 바뀌어버린다 — 이걸 막으려는 것", () => {
+    const deviceNow = new Date("2026-09-08T23:57:00+09:00");
+    expect(buildWidgetTimeline({ now: deviceNow, next: today, current })).toEqual([
+      { date: deviceNow, props: today },
+    ]);
+  });
+
+  it("기기 시계가 빨라 다음날 새벽이라고 믿어도, 받은 곡의 07:00이 지났으면 바로 그린다", () => {
+    // 실제로는 KST 9일 23:00이라 서버가 9일 곡을 줬는데, 기기 시계는 2시간 빨라 10일 01:00이다.
+    const deviceNow = new Date("2026-09-10T01:00:00+09:00");
+    const shown = { date: new Date("2026-09-09T07:00:00+09:00"), props: today };
+
+    expect(buildWidgetTimeline({ now: deviceNow, next: today, pickDate: "2026-09-09", current: shown })).toEqual([
+      { date: deviceNow, props: today },
+    ]);
+  });
+
+  it("pickDate 기준으로도 07:00 정각은 '지난 것'이다", () => {
+    const now = new Date("2026-09-09T07:00:00+09:00");
+    expect(buildWidgetTimeline({ now, next: today, pickDate: "2026-09-09", current })).toEqual([
+      { date: now, props: today },
+    ]);
+  });
+
+  it("pickDate가 있어도 첫 설치(떠 있는 게 없음)면 바로 그린다", () => {
+    const now = new Date("2026-09-09T03:00:00+09:00");
+    expect(buildWidgetTimeline({ now, next: today, pickDate: "2026-09-09" })).toEqual([{ date: now, props: today }]);
   });
 });

@@ -3,9 +3,15 @@
 //
 // 읽기 원본은 Supabase의 `widget_today_pick` 뷰다(백엔드 P3-S1-T1). 이 뷰가 두 가지를
 // 서버에서 강제한다 — `status = 'published'`인 픽만, 그리고 "오늘"의 기준은 KST 자정.
-// **클라이언트에서 오늘 날짜를 계산하지 말 것.** 앱·iOS·Android가 각자 로컬 타임존으로
-// 계산하면 해외 사용자에게 하루 어긋나고, 세 구현이 서로 달라지는 순간 원인 추적이 거의
-// 불가능해진다. 이 파일에 날짜 계산이 없는 것은 의도된 것이다.
+//
+// 시각 판단의 역할 분담 (P3-S4-T2에서 정리):
+//   - **"어느 날의 곡인가"는 서버가 정한다.** 클라이언트는 자기 시계로 오늘 픽을 고르지
+//     않는다. 앱·iOS·Android가 각자 계산하면 해외 사용자에게 하루 어긋나고, 세 구현이 서로
+//     달라지는 순간 원인 추적이 거의 불가능해진다.
+//   - **"언제 바꿔 그릴지"(KST 07:00)만 이 파일이 정한다.** 그것도 가능하면 서버가 준
+//     `pickDate`에 묶어 계산한다 — 기기 시계가 틀려도 규칙이 깨지지 않게(`buildWidgetTimeline`).
+//   - 기기 로컬 시간 API(`getHours`·`setHours`·`toLocaleDateString` 등)는 쓰지 않는다. 모든
+//     비교는 UTC 순간(epoch)끼리 한다. `src/timezone.test.ts`가 여러 타임존에서 이를 고정한다.
 
 import { kstMidnightToUtc, toKstDateString } from "../date/kst";
 
@@ -59,17 +65,27 @@ export const WIDGET_SWITCH_HOUR_KST = 7;
 const HOUR_MS = 60 * 60 * 1000;
 
 /**
+ * KST 날짜(`YYYY-MM-DD`)의 전환 시각 — 그날 07:00 KST에 해당하는 순간.
+ *
+ * 곡의 날짜(`pickDate`)를 넣으면 "이 곡을 언제부터 보여줄까"가 바로 나온다. 기기 시계를
+ * 거치지 않으므로 날짜를 알 때는 이쪽을 쓴다.
+ */
+export function widgetSwitchAtForDate(kstDate: string): Date {
+  return new Date(kstMidnightToUtc(kstDate).getTime() + WIDGET_SWITCH_HOUR_KST * HOUR_MS);
+}
+
+/**
  * 주어진 순간이 속한 **KST 날짜의 전환 시각**(그날 07:00 KST)을 돌려준다.
  *
  * 어느 픽을 보여줄지는 서버(`widget_today_pick` 뷰)가 정하지만, **언제 바꿔 그릴지는**
  * 클라이언트가 판단할 수밖에 없다 — 위젯 타임라인에 예약할 순간을 만들어야 하기 때문이다.
  * 그 계산이 세 표면(앱·iOS·Android)에 흩어지면 어긋나므로 여기 한 곳에 둔다.
  *
- * 기기 로컬 타임존과 무관하게 항상 KST 07:00을 가리킨다.
+ * 기기 로컬 타임존과 무관하게 항상 KST 07:00을 가리킨다. 다만 "오늘"을 **기기 시계**로
+ * 정하므로, 곡의 날짜를 알 때는 `widgetSwitchAtForDate`를 쓴다.
  */
 export function widgetSwitchAt(now: Date = new Date()): Date {
-  const kstMidnight = kstMidnightToUtc(toKstDateString(now));
-  return new Date(kstMidnight.getTime() + WIDGET_SWITCH_HOUR_KST * HOUR_MS);
+  return widgetSwitchAtForDate(toKstDateString(now));
 }
 
 /**
@@ -93,12 +109,19 @@ export interface WidgetTimelineSlot<Props> {
  * WorkManager 예약을 잡는다. 두 플랫폼이 다르게 판단하면 같은 날 다른 곡이 뜨므로
  * 규칙을 여기 한 곳에 두고 테스트로 고정한다.
  *
- * 규칙:
- * 1. **07:00을 지났으면** 새 내용을 지금 그린다.
- * 2. **아직 07:00 전이면** 지금 떠 있는 것(어제 곡)을 그대로 두고, 07:00에 바뀌도록
+ * 규칙 (전환 시각 = `next` 곡 날짜의 07:00 KST):
+ * 1. **전환 시각을 지났으면** 새 내용을 지금 그린다.
+ * 2. **아직 전이면** 지금 떠 있는 것(어제 곡)을 그대로 두고, 전환 시각에 바뀌도록
  *    예약한다. 곡은 이미 자정에 발행됐지만 위젯 전환 시각은 07:00이기 때문이다.
- * 3. **07:00 전인데 지금 떠 있는 게 없으면**(위젯을 방금 추가) 새 내용을 바로 그린다.
+ * 3. **전인데 지금 떠 있는 게 없으면**(위젯을 방금 추가) 새 내용을 바로 그린다.
  *    유지할 어제 곡이 없는데 빈 위젯을 몇 시간 보여주는 것보다 낫다.
+ *
+ * **전환 시각을 기기 시계가 아니라 `pickDate`로 계산하는 이유**(P3-S4-T2): 어느 곡인지는
+ * 서버 시계가, 언제 바꿀지는 기기 시계가 정하면 두 시계가 어긋날 때 규칙이 깨진다. 예를 들어
+ * 시계가 몇 분 늦은 폰이 KST 9일 00:02에 동기화하면 서버는 이미 9일 곡을 주는데, 기기는 아직
+ * 8일 23:57이라 "8일 07:00은 지났다"고 판단해 **9일 곡을 07:00까지 기다리지 않고 자정에 바로
+ * 띄운다.** 곡 자신의 날짜로 계산하면 이때도 9일 07:00에 바뀐다. 오늘 픽이 없어 날짜를
+ * 모를 때만 기기 시계로 대신한다.
  *
  * `Props`를 제네릭으로 둔 건 플랫폼마다 위젯이 받는 모양이 달라서다 — 이 함수는 시각만
  * 판단하고 내용에는 관여하지 않는다.
@@ -107,19 +130,25 @@ export function buildWidgetTimeline<Props>(input: {
   now: Date;
   /** 이번에 새로 그릴 내용(오늘 곡, 또는 오늘 픽이 없을 때의 빈 상태). */
   next: Props;
+  /**
+   * `next`가 어느 KST 날짜의 곡인지 — 서버가 준 `pick_date` 그대로. 있으면 전환 시각을 이
+   * 날짜로 계산한다. 오늘 픽이 없어 날짜를 모를 때만 생략한다.
+   */
+  pickDate?: string;
   /** 지금 그려지고 있는 항목. 위젯을 방금 추가했다면 없다. */
   current?: WidgetTimelineSlot<Props>;
 }): WidgetTimelineSlot<Props>[] {
-  const { now, next, current } = input;
+  const { now, next, pickDate, current } = input;
+  const switchAt = pickDate ? widgetSwitchAtForDate(pickDate) : widgetSwitchAt(now);
 
-  if (isAfterWidgetSwitch(now) || !current) {
+  if (now.getTime() >= switchAt.getTime() || !current) {
     return [{ date: now, props: next }];
   }
 
   return [
     // 지금 떠 있는 것을 그대로 유지한다. 이 항목을 빼면 07:00까지 위젯이 빈다.
     { date: current.date, props: current.props },
-    { date: widgetSwitchAt(now), props: next },
+    { date: switchAt, props: next },
   ];
 }
 

@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@ongod/admin", "dev"],
       "port": 3000
+    },
+    {
+      "name": "mobile",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@ongod/mobile", "start"],
+      "port": 8081
     }
   ]
 }

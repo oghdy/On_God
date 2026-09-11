@@ -170,7 +170,9 @@ async function deliverWidgetPayload(payload: WidgetPayload | null): Promise<void
 
   // "언제 바꿔 그릴지"는 `@ongod/core`의 순수 함수가 정한다 — Android(P3-S3)도 같은
   // 규칙으로 예약을 잡아야 해서 공유하고, 시각 판단은 테스트로 고정해뒀다.
-  const entries = buildWidgetTimeline({ now, next: props, current });
+  // `pickDate`를 넘겨 전환 시각을 **서버가 정한 곡의 날짜**로 계산하게 한다(P3-S4-T2) —
+  // 기기 시계로 계산하면 시계가 늦은 폰에서 새 곡이 07:00이 아니라 자정에 바로 뜬다.
+  const entries = buildWidgetTimeline({ now, next: props, pickDate: payload?.pickDate, current });
 
   if (isAlreadyScheduled(existing, entries, now)) {
     console.log("[widget] 이미 최신 — 갱신 건너뜀");
