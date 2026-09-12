@@ -28,6 +28,12 @@ jobs:
       - name: React 단일 사본 검사
         run: node scripts/check-single-react.mjs
 
+      # 위젯 딥링크(ongod://)는 서로 import할 수 없는 네 곳에 나뉘어 있다 — app.json scheme,
+      # @ongod/core 상수, iOS 위젯 리터럴, Android 전달 경로. 어긋나도 타입체크·테스트는
+      # 통과하고, 사용자가 위젯을 눌렀을 때 "아무 일도 안 일어남"으로만 드러난다(P3-S4-T3).
+      - name: 위젯 딥링크 일치 검사
+        run: node scripts/check-deep-link.mjs
+
       - run: pnpm lint
 
       - run: pnpm typecheck

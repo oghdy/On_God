@@ -12,8 +12,8 @@
 
 - [x] S1. 위젯 데이터 공급 — T1·T3·T4(backend) [로그](./logs/backend-log.md#2026-09-08--p3-s1-t1t3t4--위젯-데이터-계약--이미지-규격) · T2(frontend) [로그](./logs/frontend-log.md#2026-09-08--p3-s1-t2--위젯-데이터-전달--adr-0009-expo-widgets-채택)
 - [ ] S2. iOS 위젯 (WidgetKit) — 🧑 T7(실기기)만 남음
-- [ ] S3. Android 위젯 (Glance) — T1~T6 완료, 🤝 T1b(EAS 빌드 서명 키 승인)·🧑 T7(실기기) 남음 — [로그](./logs/frontend-log.md#2026-09-11--p3-s3-t1t6--android-위젯glance-로컬-expo-모듈--에뮬레이터-종단-검증)
-- [ ] S4. 갱신·딥링크·안정화
+- [ ] S3. Android 위젯 (Glance) — T1~T6·T1b 완료, 🧑 T7(실기기)만 남음 — [로그](./logs/frontend-log.md#2026-09-11--p3-s3-t1t6--android-위젯glance-로컬-expo-모듈--에뮬레이터-종단-검증)
+- [ ] S4. 갱신·딥링크·안정화 — T1·T2·T3·T5 완료, 🧑 T4(양 플랫폼 실기기)만 남음
 
 ---
 
@@ -62,7 +62,7 @@
 - [x] 🤖 **P3-S2-T2** — App Group 공유 컨테이너 연결 — `expo-widgets`가 App Group UserDefaults와 `widgetsDirectory`를 관리한다(ADR-0009). 앱·위젯 양쪽 entitlements에 `group.com.ongod.app` 생성 확인
 - [x] 🤖 **P3-S2-T3** — 2×2 위젯 뷰 (커버+곡명) — `widgets/OnGodToday.tsx`. TSX + `@expo/ui/swift-ui`(ADR-0009). **시뮬레이터 홈 화면에서 실제 렌더 확인 완료** — 커버 풀블리드 + 하단 그라디언트 스크림 + 곡명/아티스트
 - [x] 🤖 **P3-S2-T4** — 타임라인: KST 07:00 전환 예약 — 판단 로직은 `@ongod/core`의 `buildWidgetTimeline`(순수 함수, Android도 공유), 전달은 `updateTimeline`. **자정이 아니라 07:00 전환**이라는 점에 주의(S4 상단 명세) ([로그](./logs/frontend-log.md#2026-09-09--p3-s2-t4--위젯-타임라인-kst-0700-전환-예약))
-- [x] 🤖 **P3-S2-T5** — 위젯 탭 → 앱 오늘 카드 딥링크 — `widgetURL("ongod://")` modifier. 시뮬레이터에서 **탭 시 앱이 실제로 실행되는 것 확인**. 단 개발 빌드에서는 dev-client 런처가 스킴을 가로채 최종 라우팅까지는 확인 불가 — standalone 빌드 또는 실기기에서 재확인 필요
+- [x] 🤖 **P3-S2-T5** — 위젯 탭 → 앱 오늘 카드 딥링크 — `widgetURL("ongod://")` modifier. 시뮬레이터에서 **탭 시 앱이 실제로 실행되는 것 확인**. **2026-09-12 라우팅까지 확인**(P3-S4-T3): 앱이 떠 있으면 위젯 탭 → 오늘 카드로 정확히 이동한다. 다만 앱이 완전히 꺼진 상태(콜드 스타트)에서는 dev client 런처가 먼저 뜬다 — 개발 빌드 한정이며 정식 빌드엔 런처가 없다. 실기기 확인 항목(T7)
 - [x] 🤖 **P3-S2-T6** — 데이터 없음/이미지 실패 fallback — 이미지 3단계 폴백(위젯512 → 커버600 → 음표 심볼)은 `@ongod/core`에 테스트와 함께. **커버 없음 케이스를 시뮬레이터에서 강제 재현해 렌더 확인 완료** — 다크 배경(`containerBackground`) + 음표 심볼 + 곡명은 그대로 노출
 - 🧑 **P3-S2-T7** — iOS 실기기 테스트
   *당신: 실제 아이폰에 위젯 추가·갱신·탭 동작 확인 (시뮬레이터 한계, 사람 확인 필요)*
@@ -77,12 +77,11 @@
 ### Task
 
 - [x] 🤖 **P3-S3-T1** — Glance 위젯 추가·빌드 — **Config Plugin 없이** 로컬 Expo 모듈로 넣었다. 오토링킹 기본 경로(`./modules`)라 설정이 필요 없고, `<receiver>`·`appwidget-provider`(2×2)는 모듈의 라이브러리 매니페스트·리소스라 앱에 자동 병합된다. 위젯 선택기에 "OnGod · 오늘의 곡 · 2×2" 노출, 홈 화면 추가 확인. `.gitignore`의 `android/`가 모듈 소스까지 무시하던 함정도 고침 ([로그](./logs/frontend-log.md#2026-09-11--p3-s3-t1t6--android-위젯glance-로컬-expo-모듈--에뮬레이터-종단-검증))
-- 🤝 **P3-S3-T1b** — EAS Android 개발 빌드 — 이 앱의 첫 EAS Android 빌드라 **앱 서명 키가 새로 만들어진다**(Play Store 신원). 로컬 빌드로 동작 검증은 끝냈고, 이 빌드는 관리형 경로 확인 + 실기기 테스트(T7)용이다
-  *당신: "EAS가 Android 서명 키를 만들어 보관해도 된다"는 승인 한 마디 — [human-actions](./human-actions.md) 참고*
+- [x] 🤝 **P3-S3-T1b** — EAS Android 개발 빌드 — **2026-09-12 사람 승인 후 진행.** 첫 Android 빌드라 EAS가 앱 서명 키를 새로 만들었고(`Created keystore`, EAS 서버 보관), 빌드 성공(약 20분). **그 APK를 에뮬레이터에 설치해 관리형 경로를 확인**했다 — 로컬 빌드와 동일하게 위젯 등록·렌더·딥링크·백그라운드 등록 정상 ([로그](./logs/frontend-log.md#2026-09-12--p3-s4-t3--딥링크-라우팅-통합--불일치-방지-검사))
 - [x] 🤖 **P3-S3-T2** — SharedPreferences 데이터 공유 — 타임라인을 JSON(`version` 필드 포함)으로 저장, 커버는 앱 내부 저장소 `files/ongod-widget/`. 모듈 API(`getTimeline`/`updateTimeline`)를 expo-widgets iOS와 같은 모양으로 맞춰 JS 흐름을 공유한다(`syncWidget.ts`의 `loadWidgetSurface`) ([로그](./logs/frontend-log.md#2026-09-11--p3-s3-t1t6--android-위젯glance-로컬-expo-모듈--에뮬레이터-종단-검증))
 - [x] 🤖 **P3-S3-T3** — 2×2 Glance 위젯 뷰 (커버+곡명) — `OnGodWidget.kt`. 커버 풀블리드 + 하단 스크림 + 곡명/아티스트, 색·크기는 iOS와 같은 값. **에뮬레이터 홈 화면에서 실제 dev 데이터로 렌더 확인**
 - [x] 🤖 **P3-S3-T4** — 위젯 갱신 (WorkManager) — **KST 07:00 판단은 JS(`buildWidgetTimeline` + `pickDate`)가 하고**, 네이티브는 타임라인의 다음 시각에 WorkManager 1회성 작업을 걸어 다시 그리기만 한다(네트워크 없음). **앱 프로세스를 죽인 상태에서 예약 시각에 위젯이 바뀌는 것 확인**
-- [x] 🤖 **P3-S3-T5** — 위젯 탭 → 앱 딥링크 (Intent) — `VIEW ongod://`를 우리 앱으로만 보낸다(`setPackage`). 탭 → `MainActivity` → **앱 오늘 카드까지 확인**(Android 개발 빌드는 iOS와 달리 dev client가 스킴을 가로채지 않았다)
+- [x] 🤖 **P3-S3-T5** — 위젯 탭 → 앱 딥링크 (Intent) — `VIEW ongod://`를 우리 앱으로만 보낸다(`setPackage`). 탭 → `MainActivity` → **앱 오늘 카드까지 확인**. 앱이 꺼진 상태에서는 iOS와 마찬가지로 dev client 런처가 먼저 뜬다(개발 빌드 한정, P3-S4-T3)
 - [x] 🤖 **P3-S3-T6** — fallback 디자인 (iOS와 일관) — 커버 없음 → 어두운 배경(#0B0B0D) + 음표, 동기화 전 → "오늘의 곡을 준비 중이에요". 커버 없음 케이스 렌더 확인
 - 🧑 **P3-S3-T7** — Android 실기기 테스트
   *당신: 실제 안드로이드 기기에 위젯 추가·갱신·탭 확인*
@@ -120,7 +119,7 @@
 - [x] 🤖 **P3-S4-T1** — 백그라운드 자동 갱신 — `expo-background-task`(WorkManager/BGTaskScheduler)로 4시간 주기 등록, `lib/widget/backgroundSync.ts`. 자정~07:00의 7시간 창 안에 한 번만 돌면 된다. **iOS 실행은 시뮬레이터에서 검증 불가**(라이브러리가 명시적으로 미지원 — 아래 참고) ([로그](./logs/frontend-log.md#2026-09-09--p3-s4-t1t5--백그라운드-동기화--실패-시-캐시-유지))
   *→ **Android는 2026-09-11 에뮬레이터에서 검증 완료** — WorkManager 등록(240분·네트워크 제약) + 작업 실행 → JS 동기화 → 앱을 열지 않고 위젯 갱신까지 ([P3-S3 로그](./logs/frontend-log.md#2026-09-11--p3-s3-t1t6--android-위젯glance-로컬-expo-모듈--에뮬레이터-종단-검증))*
 - [x] 🤖 **P3-S4-T2** — 발행 cron과 위젯 갱신 타임존 정합성 (KST) — cron·발행 함수·뷰·앱·어드민·위젯의 날짜 판단을 전수 점검해 **전부 KST로 일치**함을 확인(기기 로컬 시간 API 0건). 보완 한 곳: **위젯 전환 시각을 기기 시계가 아니라 서버가 준 `pickDate`로 계산**한다(시계가 늦은 폰에서 새 곡이 자정에 바로 뜨던 경우 차단). 9개 타임존 회귀 테스트(`packages/core/src/timezone.test.ts`) + 시뮬레이터 Hermes를 뉴욕·UTC+14로 실행해 확인 ([로그](./logs/frontend-log.md#2026-09-11--p3-s4-t2--타임존-정합성-서버-날짜-기준-전환--다중-타임존-검증))
-- 🤖 **P3-S4-T3** — 딥링크 라우팅 통합 — S3-T5(Android 탭) 이후 진행
+- [x] 🤖 **P3-S4-T3** — 딥링크 라우팅 통합 — iOS·Android 양쪽에서 **앱이 떠 있을 때 라우팅을 종단 확인**했다: 가사 화면에 있다가 위젯을 눌러도 오늘 카드로 이동, `ongod://lyrics/{songId}` 하위 경로 진입, 딥링크로 들어가도 뒤로가기가 오늘 카드로 이어짐(`unstable_settings.initialRouteName`). 코드 변경은 필요 없었고, 대신 **딥링크 문자열이 네 곳에서 어긋나는 것을 막는 CI 검사**(`scripts/check-deep-link.mjs`)를 추가했다 — app.json scheme · `@ongod/core` 상수 · iOS 위젯 리터럴 · Android 전달 경로 ([로그](./logs/frontend-log.md#2026-09-12--p3-s4-t3--딥링크-라우팅-통합--불일치-방지-검사))
   *~~결정 필요(당신): 자정~07:00에는 위젯은 어제 곡, 앱 오늘 카드는 이미 오늘 곡이라 이 시간에 위젯을 탭하면 다른 곡이 열린다. 그대로 둘지, 위젯이 보여주던 곡의 카드로 열지~~ ([P3-S4-T2 로그](./logs/frontend-log.md#2026-09-11--p3-s4-t2--타임존-정합성-서버-날짜-기준-전환--다중-타임존-검증))*
   *→ **2026-09-11 결정: 그대로 둔다(a).** "오전 7시 전까지는 그냥 어제의 곡, 7시에 위젯이 바뀐다." 딥링크는 `ongod://`(앱 오늘 카드) 하나로 유지하고 날짜를 싣지 않는다.*
 - 🧑 **P3-S4-T4** — 양 플랫폼 실기기 종합 테스트

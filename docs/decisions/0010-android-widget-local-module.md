@@ -60,7 +60,8 @@ ADR-0009가 "Android 위젯은 Glance로 직접 작성"까지 정했다. 실제�
 
 - **WorkManager는 늦게 돌 수 있다.** 기기가 절전(Doze) 중이면 07:00 정각이 아니라 다음 유지보수 창에 바뀐다. 먼저 돌지는 않으므로 "7시 전에 새 곡이 뜨는" 일은 없다.
 - **CI는 Kotlin을 컴파일하지 않는다.** 모듈의 네이티브 코드를 바꾸면 로컬 빌드나 EAS 빌드로 확인해야 한다.
-- **EAS Android 빌드는 아직 안 했다.** 이 앱의 첫 EAS Android 빌드는 앱 서명 키를 새로 만드는데, 그 키는 Play Store 신원이라 사람 승인을 받기로 했다([human-actions P3-S3-T1b](../human-actions.md)). 대신 EAS가 하는 것과 같은 경로(`expo prebuild` → Gradle)를 로컬에서 돌려 검증했다.
+- ~~**EAS Android 빌드는 아직 안 했다.** 첫 EAS Android 빌드는 앱 서명 키를 새로 만드는데, 그 키는 Play Store 신원이라 사람 승인을 받기로 했다([human-actions P3-S3-T1b](../human-actions.md)). 대신 EAS가 하는 것과 같은 경로(`expo prebuild` → Gradle)를 로컬에서 돌려 검증했다.~~
+  → **2026-09-12 해소.** 사람 승인 후 첫 EAS Android 빌드를 돌려 서명 키를 생성했고(EAS 서버 보관), 그 APK로 관리형 빌드 경로까지 확인했다([P3-S4-T3 로그](../logs/frontend-log.md#2026-09-12--p3-s4-t3--딥링크-라우팅-통합--불일치-방지-검사)).
 
 ## 검증
 

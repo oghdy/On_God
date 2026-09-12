@@ -564,3 +564,42 @@
 - 에뮬레이터 런처의 2×2 칸이 세로로 길어(172×234dp) 커버 좌우가 잘린다 — Crop이라 정상 동작이지만 기기마다 칸 비율이 달라 실기기에서 모양 확인.
 - 백엔드 영향 없음 — 계약·뷰는 그대로 쓴다. 루트 `.gitignore` 변경은 `apps/mobile`의 생성물 경로만 좁힌 것이라 handoff는 남기지 않았다.
 - 다음: P3-S4-T3(딥링크 라우팅 통합) → 🧑 실기기(P3-S2-T7·P3-S3-T7·P3-S4-T4).
+
+## 2026-09-12 · P3-S4-T3 — 딥링크 라우팅 통합 + 불일치 방지 검사 (P3-S3-T1b EAS 빌드 포함)
+
+**Task**: [P3-S4-T3](../phase-3-widget.md#s4-갱신딥링크안정화-srs-42), [P3-S3-T1b](../phase-3-widget.md#s3-android-위젯-glance) (+ P3-S2-T5·P3-S3-T5의 "라우팅 미확인" 해소)
+**한 일**:
+- **P3-S3-T1b — EAS Android 개발 빌드**(사람 승인 2026-09-12). 첫 Android 빌드라 EAS가 **앱 서명 키를 새로 만들었다**(`✔ Created keystore`, EAS 서버 보관). 빌드 성공(빌드 ID `17d8a055`, 약 20분), APK 250MB.
+- **P3-S4-T3 — 딥링크 라우팅 통합.** 앱 코드 변경은 **없었다** — 검증 결과 expo-router가 이미 의도대로 라우팅하고 있었다. 대신 조용히 깨질 수 있는 지점을 검사로 막았다.
+  - `scripts/check-deep-link.mjs` 신규 + CI 스텝 추가(`위젯 딥링크 일치 검사`).
+  - 검사 대상 네 곳: `app.json`의 `scheme` · `@ongod/core`의 `WIDGET_DEEP_LINK` · iOS 위젯의 `widgetURL(...)` 리터럴 · `syncWidget.ts`가 상수를 Android에 넘기는지. 딥링크가 도착할 `app/index.tsx` 존재도 함께 본다.
+- 문서: phase-3의 S2-T5·S3-T5에 남아 있던 "최종 라우팅 확인 불가" 문구를 실제 결과로 갱신, T1b·T3 완료 표시, human-actions T1b 완료, ADR-0010의 "EAS 빌드는 아직" 항목 해소 표시.
+
+**왜 이렇게**:
+- **딥링크는 한 줄짜리 기능인데 값이 네 곳에 흩어져 있다.** iOS 위젯은 **별도 JS 컨텍스트**라 앱 상수를 import할 수 없어(ADR-0009) 문자열을 복사해 둘 수밖에 없고, `app.json`의 `scheme`이 바뀌면 OS가 URL을 앱으로 보내지도 않는다. 넷 중 하나만 어긋나도 **타입체크·테스트·빌드는 전부 통과하고**, 사용자가 위젯을 눌렀을 때 "아무 일도 안 일어남"으로만 드러난다. 그래서 검사를 코드가 아니라 CI에 뒀다.
+- **검사가 실제로 울리는지 양방향으로 확인했다**(기존 `check-single-react.mjs`와 같은 방식). 세 가지 변형을 만들어 전부 exit 1로 잡히는 것을 보고 원복했다: (1) `app.json`의 scheme만 변경 (2) iOS 위젯 리터럴만 변경 (3) iOS 위젯에서 `widgetURL` 삭제.
+- **라우팅에 코드를 더하지 않은 이유**: 확인해보니 `unstable_settings.initialRouteName`(P0-S7-T5에서 넣은 것)만으로 딥링크 진입 후 뒤로가기 스택이 오늘 카드로 이어졌고, 위젯 딥링크(`ongod://`)는 경로가 비어 있어 index로 정확히 매핑됐다. 동작하는 것에 코드를 더하면 나중에 지울 것만 늘어난다.
+- **EAS 빌드를 사람 승인 뒤로 미뤘던 이유**: 첫 빌드가 만드는 서명 키는 Play Store에서 앱의 신원이 되어 바꾸기 번거롭다. 승인받고 진행했다.
+
+**변경 파일**: `scripts/check-deep-link.mjs`(신규), `.github/workflows/ci.yml`, `docs/phase-3-widget.md`, `docs/human-actions.md`, `docs/decisions/0010-android-widget-local-module.md`
+**검증**:
+- **iOS**(시뮬레이터 개발 빌드, iPhone 16 Pro) — 지금까지 "dev client가 가로채 확인 불가"로 남겨뒀던 항목이다.
+  - 가사 화면에 머문 채 `ongod://` → **오늘 카드로 이동**.
+  - **실제 홈 화면 위젯 탭** → 확인 창 없이 오늘 카드(`simctl openurl`로 보낼 때만 시스템 확인 창이 뜬다 — 테스트 방식의 부작용이지 앱 동작이 아니다).
+  - `ongod://lyrics/{songId}` → 해당 가사 화면, 뒤로가기 → 오늘 카드.
+  - **콜드 스타트(앱 완전 종료)에서는 dev client 런처가 먼저 뜬다.** 개발 빌드 한정이며 정식 빌드에는 런처 자체가 없다.
+- **Android**(에뮬레이터 API 36, **EAS가 만든 APK**로 검증)
+  - 설치 → Metro 연결 → `[widget] 타임라인 [{title: "Amazing Grace"}]`, 백그라운드 작업 등록(240분), 오늘 카드 1607ms.
+  - 위젯 선택기 → 홈 화면 추가 → **오늘 곡 렌더 확인**(로컬 빌드와 동일). 즉 **관리형 빌드 경로(EAS prebuild + 오토링킹)가 로컬과 같은 결과를 낸다**(T1b의 목적).
+  - 가사 화면에 머문 채 위젯 탭 → `START act=VIEW dat=ongod:// cmp=.MainActivity` → **오늘 카드 복귀**.
+  - `ongod://lyrics/{songId}` → 해당 가사 화면.
+  - 콜드 스타트: 프로세스만 죽인 뒤 위젯 탭 → `MainActivity` 시작 후 **`DevLauncherActivity`가 뜬다**(iOS와 같은 개발 빌드 한정 동작).
+  - `am force-stop` 뒤에는 위젯 탭에 아무 반응이 없다 — **안드로이드 표준 동작**이다(강제 중지된 앱은 사용자가 직접 열기 전까지 깨어나지 않는다). 우리 코드 문제가 아니라 OS 정책이라 그대로 둔다.
+- `pnpm turbo run typecheck lint test build` 20/20, `check-single-react.mjs`·`check-deep-link.mjs` 통과.
+- 덤: 날짜가 바뀌어(9/12) **cron이 발행한 "Amazing Grace"로 앱·iOS 위젯·Android 위젯이 모두 전환**된 것을 확인했다 — 이틀 연속 실제 운영 경로로 롤오버가 돈 셈이다.
+
+**막힌 점 / 다음 할 일**:
+- **iOS 앱이 첫 실행 때 한 번 크래시했다**(`ExpoFabricView.injectInitializer` assertion, Fabric 뷰 생성 단계). 같은 순서(terminate → launch → dev client URL)로 다시 시도했을 때 **재현되지 않았고**, 이후 반복 실행·라우팅 테스트는 모두 정상이었다. 개발 빌드 한정 일회성으로 보이지만 원인을 특정하지 못했으므로 기록만 남긴다 — 실기기 테스트(P3-S2-T7)에서 비슷한 증상이 보이면 이 항목을 먼저 의심할 것.
+- **콜드 스타트 라우팅은 정식 빌드에서만 확인 가능하다**(양 플랫폼 공통, dev client 런처 때문). 🧑 실기기 테스트(P3-S2-T7·P3-S3-T7·P3-S4-T4)로 넘긴다.
+- **서명 키 관리**: 이제 이 앱의 Android 서명 키가 EAS 서버에 있다. Play Store 업로드 키가 되므로 EAS 계정(`doyis`)을 잃지 않도록 관리해야 한다. 백업이 필요하면 `eas credentials`로 내려받을 수 있다.
+- S4에 남은 에이전트 몫은 없다. 남은 것은 🧑 실기기 3건뿐이다.
